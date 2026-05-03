@@ -8,7 +8,15 @@
 #include <string>
 
 // Prototipo de la función
-void LimpiarDatos(std::string nombreEntrada, std::string nombreSalida);
+#include <string>
+#include <vector>
 
+struct DatosPelicula {
+    std::string year, titulo, origen, director, reparto, genero, trama;
+};
+
+void LimpiarDatos(std::string nombreEntrada, std::string nombreSalida);
+// Nueva función para obtener los datos directamente en memoria
+std::vector<DatosPelicula> CargarYLimpiarDatos(std::string nombreArchivo);
 
 #endif //PROYECTO_PROGRAMACION_PREPROCESAMIENTODATOS_H

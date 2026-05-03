@@ -1,7 +1,6 @@
 #include "PreprocesamientoDatos.h"
 #include <fstream>
 #include <vector>
-#include <cctype>
 
 using namespace std;
 
@@ -9,16 +8,15 @@ using namespace std;
 string procesarCadena(const string& sucia) {
     string limpia;
     limpia.reserve(sucia.size());
+    //reserve preasigna un espacio de memoria vacio para un contenedor de tamaño res
 
     bool ultimoFueEspacio = false;
 
     for (char c : sucia) {
-        // 1. Convertir a minúscula
+        // Convertir a minuscula
         char n = (char)tolower((unsigned char)c);
 
-        // 2. Solo alfanuméricos y espacios
-        // Mantenemos las comas internas si quieres, pero por seguridad
-        // para un motor de búsqueda, es mejor solo alfanuméricos.
+        // Se mantienen solo alfanumericos y espacios, y las comas por practicidad
         if (isalnum((unsigned char)n) || n == ' ') {
             if (n == ' ') {
                 if (!ultimoFueEspacio) {
@@ -97,4 +95,33 @@ void LimpiarDatos(string nombreEntrada, string nombreSalida) {
 
     entrada.close();
     salida.close();
+}
+
+vector<DatosPelicula> CargarYLimpiarDatos(string nombreArchivo) {
+    vector<DatosPelicula> lista;
+    // OPTIMIZACIÓN: Reservamos espacio para evitar reasignaciones costosas
+    // 35000 es un estimado bajo para este dataset, ajusta según necesites
+    lista.reserve(35000);
+
+    ifstream entrada(nombreArchivo);
+    string linea;
+    bool esCabecera = true;
+
+    while (getline(entrada, linea)) {
+        if (esCabecera) { esCabecera = false; continue; }
+
+        vector<string> campos = separarLinea(linea);
+        if (campos.size() >= 8) {
+            DatosPelicula d;
+            d.year     = campos[0];
+            d.titulo   = procesarCadena(campos[1]);
+            d.origen   = procesarCadena(campos[2]);
+            d.director = procesarCadena(campos[3]);
+            d.reparto  = procesarCadena(campos[4]);
+            d.genero   = (campos[5] == "unknown") ? "otros" : procesarCadena(campos[5]);
+            d.trama    = procesarCadena(campos[7]);
+            lista.push_back(d);
+        }
+    }
+    return lista;
 }
