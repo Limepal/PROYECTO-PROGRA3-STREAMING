@@ -7,4 +7,8 @@ add_executable(PROYECTO_PROGRAMACION main.cpp
         PreprocesamientoDatos.cpp
         PreprocesamientoDatos.h
         MotorBusqueda.cpp
-        MotorBusqueda.h)
+        MotorBusqueda.h
+        Interface.cpp
+        Interface.h
+        InterfazStreaming.h
+        InterfazStreaming.cpp)

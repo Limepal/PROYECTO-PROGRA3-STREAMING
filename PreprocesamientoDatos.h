@@ -6,17 +6,18 @@
 #define PROYECTO_PROGRAMACION_PREPROCESAMIENTODATOS_H
 
 #include <string>
-
+#include<vector>
+using namespace std;
 // Prototipo de la función
 #include <string>
 #include <vector>
 
 struct DatosPelicula {
-    std::string year, titulo, origen, director, reparto, genero, trama;
+    string year, titulo, origen, director, reparto, genero, trama;
 };
 
 void LimpiarDatos(std::string nombreEntrada, std::string nombreSalida);
 // Nueva función para obtener los datos directamente en memoria
-std::vector<DatosPelicula> CargarYLimpiarDatos(std::string nombreArchivo);
+    vector<DatosPelicula> CargarYLimpiarDatos(std::string nombreArchivo);
 
 #endif //PROYECTO_PROGRAMACION_PREPROCESAMIENTODATOS_H

@@ -1,53 +1,54 @@
 #include <iostream>
+#include <vector>
 #include "PreprocesamientoDatos.h"
 #include "MotorBusqueda.h"
+#include "InterfazStreaming.h"
 
 using namespace std;
 
 int main() {
     MotorBusqueda motor;
 
-    cout << "--- Fase 1: Limpieza y Carga de Datos ---" << endl;
-    vector<DatosPelicula> datosSucios = CargarYLimpiarDatos("wiki_movie_plots_deduped.csv");
+    cout << "Piliflix- Cargando base de datos..." << endl;
 
-    cout << "--- Fase 2: Indexación en el Motor de Búsqueda ---" << endl;
-    int i = 0;
-    for (const auto& d : datosSucios) {
+    // Fase 1: Carga de datos
+    vector<DatosPelicula> datos = CargarYLimpiarDatos("wiki_movie_plots_deduped.csv");
+
+    if (datos.empty()) {
+        cerr << "Error: No se pudo cargar wiki_movie_plots_deduped.csv" << endl;
+        cerr << "Verifica que el archivo este en el directorio actual." << endl;
+        return 1;
+    }
+
+    cout << datos.size() << " peliculas cargadas. Indexando..." << endl;
+
+    // Fase 2: Indexacion
+    for (size_t i = 0; i < datos.size(); i++) {
         Pelicula p;
-        p.year = d.year;
-        p.titulo = d.titulo;
-        p.genero = d.genero;
-        p.trama = d.trama;
-        // El motor se encarga de insertarla en el Trie e Índice Invertido
+        p.year = datos[i].year;
+        p.titulo = datos[i].titulo;
+        p.genero = datos[i].genero;
+        p.trama = datos[i].trama;
+        p.director = datos[i].director;
+        p.reparto = datos[i].reparto;
+        p.origen = datos[i].origen;
         motor.agregarPelicula(p);
-        i ++;
-        cout << "PelIndEx!: " << i << " --";
+
+        if ((i + 1) % 1000 == 0 || i == datos.size() - 1) {
+            cout << "  Progreso: " << (i + 1) << "/" << datos.size()
+                 << " (" << (100 * (i + 1) / datos.size()) << "%)";
+            cout.flush();
+        }
     }
     motor.finalizarIndexacion();
-    cout << "Indexación completada. " << datosSucios.size() << " películas listas." << endl;
 
-    // Ejemplo de uso del Buscador
-    cout << "\n--- Fase 3: Pruebas de Búsqueda ---" << endl;
+    cout << "Indexacion completada." << endl;
+    cout << "Presiona ENTER para iniciar...";
+    cin.get();
 
-    // Prueba de búsqueda por título (Trie)
-    string busquedaTitulo = "kansas saloon";
-    cout << "Buscando titulo: '" << busquedaTitulo << "'..." << endl;
-    vector<int> resultadosTrie = motor.buscarPorTitulo(busquedaTitulo);
-
-    for (int id : resultadosTrie) {
-        Pelicula res = motor.obtenerPelicula(id);
-        cout << "[Encontrado] (" << res.year << ") " << res.titulo << endl;
-    }
-
-    // Prueba de búsqueda por trama (Índice Invertido)
-    string palabraTrama = "bartender";
-    cout << "\nBuscando palabra clave en tramas: '" << palabraTrama << "'..." << endl;
-    vector<int> resultadosTrama = motor.buscarEnTrama(palabraTrama);
-
-    for (int id : resultadosTrama) {
-        Pelicula res = motor.obtenerPelicula(id);
-        cout << "[Menciona '" << palabraTrama << "']: " << res.titulo << endl;
-    }
+    // Fase 3: Iniciar interfaz
+    InterfazStreaming app(&motor);
+    app.ejecutar();
 
     return 0;
 }

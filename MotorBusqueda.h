@@ -5,19 +5,21 @@
 #include <vector>
 #include <algorithm>
 
+using namespace std;
+
 struct Pelicula {
     int id;
-    std::string year, titulo, genero, trama;
+    string year, titulo, genero, trama, director, reparto, origen;
 };
 
 struct NodoTrie {
-    std::vector<std::pair<char, NodoTrie*>> hijos;
-    std::vector<int> peliculasIDs;
+    vector<pair<char, NodoTrie*>> hijos;
+    vector<int> peliculasIDs;
     bool esFin = false;
 };
 
 struct ParPalabraId {
-    std::string palabra;
+    string palabra;
     int id;
     // Operador para ordenar alfabéticamente
     bool operator<(const ParPalabraId& otro) const {
@@ -53,6 +55,7 @@ public:
     void finalizarIndexacion(); // ESTA FUNCIÓN ES CRÍTICA AHORA
     std::vector<int> buscarPorTitulo(const std::string& prefijo);
     std::vector<int> buscarEnTrama(const std::string& termino);
+    int getTotalPeliculas() { return baseDatos.size(); }
     Pelicula obtenerPelicula(int id);
 };
 
