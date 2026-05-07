@@ -417,11 +417,10 @@ void InterfazStreaming::pantallaInicio() {
         cout << "TU LISTA 'VER MAS TARDE':" << endl;
         linea(60, '-');
 
-        size_t limite = min(perfil.verMasTarde.size(), size_t(5));
-        for (size_t i = 0; i < limite; i++) {
-            mostrarResumen(perfil.verMasTarde[i], (int)(i + 1));
+        size_t i = 0;
+        for (auto it = perfil.verMasTarde.begin(); it != perfil.verMasTarde.end(); ++it, ++i) {
+            mostrarResumen(*it, (int)(i + 1), 0.0);
         }
-
         if (perfil.verMasTarde.size() > 5) {
             cout << "... y " << (perfil.verMasTarde.size() - 5) << " mas" << endl;
         }
