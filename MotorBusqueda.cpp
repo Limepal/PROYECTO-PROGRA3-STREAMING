@@ -1,6 +1,6 @@
 #include "MotorBusqueda.h"
 #include <algorithm>
-
+#include<vector>
 using namespace std;
 
 MotorBusqueda::MotorBusqueda() {
