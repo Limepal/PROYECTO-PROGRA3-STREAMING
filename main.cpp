@@ -12,8 +12,8 @@ int main() {
     cout << "Piliflix- Cargando base de datos..." << endl;
 
     // Fase 1: Carga de datos
-    vector<DatosPelicula> datos = CargarYLimpiarDatos("wiki_movie_plots_deduped.csv");
-
+    LimpiarDatos("wiki_movie_plots_deduped.csv", "peliculasLimpias.csv");
+    vector<DatosPelicula> datos = CargarDatosLimpios("peliculasLimpias.csv");
     if (datos.empty()) {
         cerr << "Error: No se pudo cargar wiki_movie_plots_deduped.csv" << endl;
         cerr << "Verifica que el archivo este en el directorio actual." << endl;

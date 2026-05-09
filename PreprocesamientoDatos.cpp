@@ -190,7 +190,7 @@ void LimpiarDatos(const string& nombreEntrada,
 
         if (campos.size() >= 8) {
 
-            string year     = campos[0];
+            const string& year = campos[0];
 
             string titulo   =
                 eliminarStopwords(
