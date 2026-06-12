@@ -568,7 +568,7 @@ void InterfazStreaming::ejecutar() {
             case 5: pantallaInicio(); break;
             case 0:
                 titulo("HASTA PRONTO");
-                cout << "Gracias por usar StreamFlix." << endl;
+                cout << "Gracias por usar PiliFlix." << endl;
                 return;
             default:
                 cout << "Opcion invalida." << endl;
