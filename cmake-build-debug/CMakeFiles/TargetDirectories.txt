@@ -1,0 +1,3 @@
+C:/Users/Dayron Cueva/Downloads/PROYECTO-PROGRA3-STREAMING-PATRONES-DAYRON/cmake-build-debug/CMakeFiles/PROYECTO_PROGRAMACION.dir
+C:/Users/Dayron Cueva/Downloads/PROYECTO-PROGRA3-STREAMING-PATRONES-DAYRON/cmake-build-debug/CMakeFiles/edit_cache.dir
+C:/Users/Dayron Cueva/Downloads/PROYECTO-PROGRA3-STREAMING-PATRONES-DAYRON/cmake-build-debug/CMakeFiles/rebuild_cache.dir
