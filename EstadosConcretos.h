@@ -1,0 +1,122 @@
+#ifndef ESTADOS_CONCRETOS_H
+#define ESTADOS_CONCRETOS_H
+#include "EstadoInterfaz.h"
+#include "InterfazStreaming.h"
+
+
+// EstadoInicio
+class EstadoInicio : public EstadoInterfaz {
+public:
+    bool ejecutar(InterfazStreaming& ctx) override {
+        ctx.pantallaInicio();
+        ctx.irAlMenu();   // InterfazStreaming hace new EstadoMenu()
+        return true;
+    }
+    const char* nombre() const override { return "Inicio"; }
+};
+
+
+// EstadoBusqueda
+class EstadoBusqueda : public EstadoInterfaz {
+public:
+    bool ejecutar(InterfazStreaming& ctx) override {
+        ctx.pantallaBusqueda();
+        ctx.irAlMenu();
+        return true;
+    }
+    const char* nombre() const override { return "Busqueda"; }
+};
+
+
+// EstadoVerMasTarde
+class EstadoVerMasTarde : public EstadoInterfaz {
+public:
+    bool ejecutar(InterfazStreaming& ctx) override {
+        ctx.pantallaVerMasTarde();
+        ctx.irAlMenu();
+        return true;
+    }
+    const char* nombre() const override { return "VerMasTarde"; }
+};
+
+
+// EstadoMisLikes
+class EstadoMisLikes : public EstadoInterfaz {
+public:
+    bool ejecutar(InterfazStreaming& ctx) override {
+        ctx.pantallaMisLikes();
+        ctx.irAlMenu();
+        return true;
+    }
+    const char* nombre() const override { return "MisLikes"; }
+};
+
+
+// EstadoEstadisticas
+class EstadoEstadisticas : public EstadoInterfaz {
+public:
+    bool ejecutar(InterfazStreaming& ctx) override {
+        ctx.pantallaEstadisticas();
+        ctx.irAlMenu();
+        return true;
+    }
+    const char* nombre() const override { return "Estadisticas"; }
+};
+
+
+// EstadoDetallePelicula
+class EstadoDetallePelicula : public EstadoInterfaz {
+    int peliculaId;
+public:
+    explicit EstadoDetallePelicula(int id) : peliculaId(id) {}
+    bool ejecutar(InterfazStreaming& ctx) override {
+        ctx.mostrarDetalle(peliculaId);
+        ctx.irAlMenu();
+        return true;
+    }
+    const char* nombre() const override { return "DetallePelicula"; }
+};
+
+
+// EstadoMenu  (ultimo: el switch usa "new" sobre clases ya definidas)
+class EstadoMenu : public EstadoInterfaz {
+public:
+    bool ejecutar(InterfazStreaming& ctx) override {
+        ctx.titulo("STREAMFLIX - MENU PRINCIPAL");
+
+        cout << "  [1] Buscar peliculas"   << endl;
+        cout << "  [2] Ver mas tarde"      << endl;
+        cout << "  [3] Mis Likes"          << endl;
+        cout << "  [4] Estadisticas"       << endl;
+        cout << "  [5] Pantalla de inicio" << endl;
+        cout << "  [0] Salir"              << endl;
+        ctx.linea(60, '=');
+        cout << "Selecciona: ";
+
+        int op;
+        if (!(cin >> op)) {
+            cin.clear();
+            cin.ignore(1000, '\n');
+            return true;
+        }
+
+        switch (op) {
+            case 1: ctx.cambiarEstado(new EstadoBusqueda());     break;
+            case 2: ctx.cambiarEstado(new EstadoVerMasTarde());  break;
+            case 3: ctx.cambiarEstado(new EstadoMisLikes());     break;
+            case 4: ctx.cambiarEstado(new EstadoEstadisticas()); break;
+            case 5: ctx.cambiarEstado(new EstadoInicio());       break;
+            case 0:
+                ctx.titulo("HASTA PRONTO");
+                cout << "Gracias por usar StreamFlix." << endl;
+                return false;
+            default:
+                cout << "Opcion invalida." << endl;
+                ctx.pausar();
+        }
+        return true;
+    }
+    const char* nombre() const override { return "Menu"; }
+};
+
+#endif // ESTADOS_CONCRETOS_H
