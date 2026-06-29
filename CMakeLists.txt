@@ -9,7 +9,6 @@ add_executable(PROYECTO_PROGRAMACION
         PreprocesamientoDatos.h
         MotorBusqueda.cpp
         MotorBusqueda.h
-        InterfazStreaming.cpp
         InterfazStreaming.h
         EstadoInterfaz.h
         EstadosConcretos.h
