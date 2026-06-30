@@ -1,3 +1,4 @@
+#include <filesystem>
 #include <iostream>
 #include <vector>
 #include "PreprocesamientoDatos.h"
@@ -5,14 +6,20 @@
 #include "InterfazStreaming.h"
 
 using namespace std;
+namespace fs = std::filesystem;
 
 int main() {
     MotorBusqueda motor;
 
     cout << "Piliflix- Cargando base de datos..." << endl;
 
+    fs::path archivoEntrada = "wiki_movie_plots_deduped.csv";
+    if (!fs::exists(archivoEntrada)) {
+        archivoEntrada = fs::path(PROJECT_SOURCE_DIR) / "wiki_movie_plots_deduped.csv";
+    }
+
     // Fase 1: Carga de datos
-    LimpiarDatos("wiki_movie_plots_deduped.csv", "peliculasLimpias.csv");
+    LimpiarDatos(archivoEntrada.string(), "peliculasLimpias.csv");
     vector<DatosPelicula> datos = CargarDatosLimpios("peliculasLimpias.csv");
     if (datos.empty()) {
         cerr << "Error: No se pudo cargar wiki_movie_plots_deduped.csv" << endl;
