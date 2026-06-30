@@ -4,6 +4,7 @@
 #include <string>
 #include <vector>
 #include <algorithm>
+#include <mutex>
 
 using namespace std;
 
@@ -12,15 +13,13 @@ struct Pelicula {
     string year, titulo, genero, trama, director, reparto, origen;
 };
 
-// ============================================
-// NODO DE SUFFIX TREE (Con compresión de aristas)
-// ============================================
+// NODO DE SUFFIX TREE
 struct NodoST {
     string etiqueta; // Almacena la subcadena en lugar de un solo char
     vector<NodoST*> hijos;
     vector<int> peliculasIDs;
     // Ya no es estrictamente necesario 'esFin' porque indexamos
-    // IDs en todo el camino para acelerar la búsqueda.
+    // IDs en tod el camino para acelerar la búsqueda.
 };
 
 struct ParPalabraId {
@@ -40,18 +39,22 @@ struct EntradaIndice {
 class MotorBusqueda {
 private:
     vector<Pelicula> baseDatos;
-    NodoST* raizST; // Renombrado a Suffix Tree
+    NodoST* raizST;
     vector<EntradaIndice> indiceInvertido;
     vector<ParPalabraId> bufferIndexacion;
+    mutex mtxST;
 
     // Helper recursivo para la inserción de sufijos
     void insertarSufijo(NodoST* nodo, string sufijo, int id);
     void liberarST(NodoST* nodo);
+    void tokenizarYAgregar(const string& texto, int id, vector<ParPalabraId>& buffer);
 
 public:
     MotorBusqueda();
     ~MotorBusqueda();
     void agregarPelicula(const Pelicula& p);
+    void agregarPeliculaConcurrente(const Pelicula& p, vector<ParPalabraId>& bufferLocal);
+    void mergeBuffers(const vector<vector<ParPalabraId>>& buffersLocales);
 
     string normalizarToken(const string &palabra);
 
