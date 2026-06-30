@@ -36,6 +36,7 @@ void InterfazStreaming::cambiarEstado(EstadoInterfaz* nuevoEstado) {
 // es un tipo completo y "new EstadoMenu()" compila sin problemas.
 void InterfazStreaming::irAlMenu() {
     cambiarEstado(new EstadoMenu());
+
 }
 
 

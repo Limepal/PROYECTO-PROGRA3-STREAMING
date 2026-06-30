@@ -1,5 +1,9 @@
-#ifndef ESTADO_INTERFAZ_H
-#define ESTADO_INTERFAZ_H
+//
+// Created by Dayron Cueva on 30/06/2026.
+//
+
+#ifndef ESTADOINTERFAZ_H
+#define ESTADOINTERFAZ_H
 
 class InterfazStreaming;
 

@@ -9,8 +9,7 @@ add_executable(PROYECTO_PROGRAMACION
         MotorBusqueda.cpp
         MotorBusqueda.h
         InterfazStreaming.h
-        InterfazStreaming.cpp   # <-- ¡AÑADE ESTO!
+        InterfazStreaming.cpp
         EstadoInterfaz.h
         EstadosConcretos.h
-        # EstadosConcretos.cpp  # <-- Descomenta esto si también tienes un .cpp para los estados
 )

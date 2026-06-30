@@ -10,6 +10,8 @@
 
 using namespace std;
 
+
+
 int main() {
     MotorBusqueda motor;
 
