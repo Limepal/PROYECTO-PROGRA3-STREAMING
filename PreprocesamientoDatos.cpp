@@ -4,7 +4,10 @@
 
 #include <fstream>
 #include <iostream>
+#include <algorithm>
 #include <unordered_set>
+#include <thread>
+#include <future>
 
 using namespace std;
 
@@ -154,138 +157,150 @@ string eliminarStopwords(const string& texto) {
 }
 
 // =========================
-// LIMPIAR CSV
+// LIMPIAR CSV (PARALELO)
 // =========================
 
 void LimpiarDatos(const string& nombreEntrada,
                   const string& nombreSalida) {
 
     ifstream entrada(nombreEntrada);
-    ofstream salida(nombreSalida);
-
     if (!entrada.is_open()) {
         cerr << "Error al abrir archivo de entrada.\n";
         return;
     }
 
+    // Leer todas las lineas a memoria
+    vector<string> lineas;
+    string linea;
+    bool esCabecera = true;
+    while (getline(entrada, linea)) {
+        if (esCabecera) {
+            esCabecera = false;
+            continue;
+        }
+        lineas.push_back(move(linea));
+    }
+    entrada.close();
+
+    if (lineas.empty()) {
+        ofstream salida(nombreSalida);
+        salida << "Year,Title,Origin,Director,Cast,Genre,Plot\n";
+        return;
+    }
+
+    // Procesar en paralelo
+    unsigned int numHilos = thread::hardware_concurrency();
+    if (numHilos == 0) numHilos = 4;
+    size_t bloque = (lineas.size() + numHilos - 1) / numHilos;
+
+    vector<string> resultados(lineas.size());
+    vector<future<void>> futuros;
+
+    for (unsigned int h = 0; h < numHilos; h++) {
+        size_t inicio = h * bloque;
+        size_t fin = min(inicio + bloque, lineas.size());
+        futuros.push_back(async(launch::async, [&lineas, &resultados, inicio, fin]() {
+            for (size_t i = inicio; i < fin; i++) {
+                vector<string> campos = separarLinea(lineas[i]);
+                if (campos.size() >= 8) {
+                    const string& year = campos[0];
+                    string titulo  = eliminarStopwords(procesarCadena(campos[1]));
+                    string origen  = eliminarStopwords(procesarCadena(campos[2]));
+                    string director= eliminarStopwords(procesarCadena(campos[3]));
+                    string reparto = eliminarStopwords(procesarCadena(campos[4]));
+                    string genero  = (campos[5] == "unknown")
+                                    ? "otros"
+                                    : eliminarStopwords(procesarCadena(campos[5]));
+                    string trama   = eliminarStopwords(procesarCadena(campos[7]));
+
+                    resultados[i] = year + "," +
+                        "\"" + titulo + "\"," +
+                        "\"" + origen + "\"," +
+                        "\"" + director + "\"," +
+                        "\"" + reparto + "\"," +
+                        "\"" + genero + "\"," +
+                        "\"" + trama + "\"\n";
+                }
+            }
+        }));
+    }
+    for (auto& f : futuros) f.get();
+
+    // Escribir resultados secuencialmente
+    ofstream salida(nombreSalida);
     if (!salida.is_open()) {
         cerr << "Error al crear archivo de salida.\n";
         return;
     }
-
-    string linea;
-    bool esCabecera = true;
-
-    while (getline(entrada, linea)) {
-
-        if (esCabecera) {
-
-            salida << "Year,Title,Origin,Director,Cast,Genre,Plot\n";
-
-            esCabecera = false;
-            continue;
-        }
-
-        vector<string> campos = separarLinea(linea);
-
-        if (campos.size() >= 8) {
-
-            const string& year = campos[0];
-
-            string titulo   =
-                eliminarStopwords(
-                    procesarCadena(campos[1])
-                );
-
-            string origen   =
-                eliminarStopwords(
-                    procesarCadena(campos[2])
-                );
-
-            string director =
-                eliminarStopwords(
-                    procesarCadena(campos[3])
-                );
-
-            string reparto  =
-                eliminarStopwords(
-                    procesarCadena(campos[4])
-                );
-
-            string genero =
-                (campos[5] == "unknown")
-                ? "otros"
-                : eliminarStopwords(
-                    procesarCadena(campos[5])
-                );
-
-            string trama =
-                eliminarStopwords(
-                    procesarCadena(campos[7])
-                );
-
-            salida << year << ","
-                   << "\"" << titulo << "\","
-                   << "\"" << origen << "\","
-                   << "\"" << director << "\","
-                   << "\"" << reparto << "\","
-                   << "\"" << genero << "\","
-                   << "\"" << trama << "\"\n";
-        }
+    salida << "Year,Title,Origin,Director,Cast,Genre,Plot\n";
+    for (const auto& r : resultados) {
+        if (!r.empty()) salida << r;
     }
-
-    entrada.close();
     salida.close();
 }
 
 // =========================
-// CARGAR CSV LIMPIO
+// CARGAR CSV LIMPIO (PARALELO)
 // =========================
 
 vector<DatosPelicula> CargarDatosLimpios(
     const string& nombreArchivo
 ) {
-
-    vector<DatosPelicula> lista;
-
-    lista.reserve(35000);
-
     ifstream entrada(nombreArchivo);
-
     if (!entrada.is_open()) {
         cerr << "Error al abrir archivo limpio.\n";
-        return lista;
+        return {};
     }
 
+    // Leer todas las lineas a memoria
+    vector<string> lineas;
     string linea;
     bool esCabecera = true;
-
     while (getline(entrada, linea)) {
-
         if (esCabecera) {
             esCabecera = false;
             continue;
         }
-
-        vector<string> campos = separarLinea(linea);
-
-        if (campos.size() >= 7) {
-
-            DatosPelicula d;
-
-            d.year     = campos[0];
-            d.titulo   = campos[1];
-            d.origen   = campos[2];
-            d.director = campos[3];
-            d.reparto  = campos[4];
-            d.genero   = campos[5];
-            d.trama    = campos[6];
-
-            lista.emplace_back(d);
-        }
+        lineas.push_back(move(linea));
     }
-
     entrada.close();
 
+    if (lineas.empty()) return {};
+
+    // Pre-asignar espacio
+    vector<DatosPelicula> lista(lineas.size());
+
+    // Procesar en paralelo
+    unsigned int numHilos = thread::hardware_concurrency();
+    if (numHilos == 0) numHilos = 4;
+    size_t bloque = (lineas.size() + numHilos - 1) / numHilos;
+
+    vector<future<void>> futuros;
+    for (unsigned int h = 0; h < numHilos; h++) {
+        size_t inicio = h * bloque;
+        size_t fin = min(inicio + bloque, lineas.size());
+        futuros.push_back(async(launch::async, [&lineas, &lista, inicio, fin]() {
+            for (size_t i = inicio; i < fin; i++) {
+                vector<string> campos = separarLinea(lineas[i]);
+                if (campos.size() >= 7) {
+                    lista[i].year     = campos[0];
+                    lista[i].titulo   = campos[1];
+                    lista[i].origen   = campos[2];
+                    lista[i].director = campos[3];
+                    lista[i].reparto  = campos[4];
+                    lista[i].genero   = campos[5];
+                    lista[i].trama    = campos[6];
+                }
+            }
+        }));
+    }
+    for (auto& f : futuros) f.get();
+
+    // Eliminar entradas vacias (lineas con menos de 7 campos)
+    lista.erase(remove_if(lista.begin(), lista.end(),
+        [](const DatosPelicula& d) { return d.year.empty(); }),
+        lista.end());
+
+    lista.shrink_to_fit();
     return lista;
 }

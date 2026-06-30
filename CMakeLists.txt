@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 4.0)
+cmake_minimum_required(VERSION 3.20)
 project(PROYECTO_PROGRAMACION)
 
 set(CMAKE_CXX_STANDARD 20)
@@ -8,7 +8,8 @@ add_executable(PROYECTO_PROGRAMACION main.cpp
         PreprocesamientoDatos.h
         MotorBusqueda.cpp
         MotorBusqueda.h
-        Interface.cpp
-        Interface.h
         InterfazStreaming.h
-        InterfazStreaming.cpp)
+        InterfazStreaming.cpp
+        EstadoInterfaz.h
+        EstadosConcretos.h
+)
