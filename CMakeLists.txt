@@ -1,8 +1,9 @@
 cmake_minimum_required(VERSION 3.20)
-project(PROYECTO_PROGRAMACION)
+project(PiliFlix)
 
 set(CMAKE_CXX_STANDARD 20)
-add_executable(PROYECTO_PROGRAMACION
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+add_executable(PiliFlix
         main.cpp
         PreprocesamientoDatos.cpp
         PreprocesamientoDatos.h
@@ -12,4 +13,8 @@ add_executable(PROYECTO_PROGRAMACION
         InterfazStreaming.cpp
         EstadoInterfaz.h
         EstadosConcretos.h
+        PerfilMemento.cpp
+        PerfilMemento.h
+        ObservadorPerfil.h
+        EstrategiaRelevancia.h
 )

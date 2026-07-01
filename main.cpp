@@ -15,7 +15,7 @@ using namespace std;
 int main() {
     MotorBusqueda motor;
 
-    cout << "Piliflix- Cargando base de datos..." << endl;
+    cout << "PiliFlix - Cargando base de datos..." << endl;
 
     // Fase 1: Carga de datos
     LimpiarDatos("wiki_movie_plots_deduped.csv", "peliculasLimpias.csv");
@@ -35,6 +35,7 @@ int main() {
     size_t bloque = (total + numHilos - 1) / numHilos;
 
     atomic<size_t> progreso{0};
+    motor.prepararCarga(total);
 
     // Hilo dedicado a dibujar la barra de progreso
     thread hiloProgreso([&]() {
@@ -76,7 +77,7 @@ int main() {
                 p.director = datos[i].director;
                 p.reparto = datos[i].reparto;
                 p.origen = datos[i].origen;
-                motor.agregarPeliculaConcurrente(p, buffersLocales[h]);
+                motor.agregarPeliculaConcurrente(p, static_cast<int>(i), buffersLocales[h]);
                 progreso++;
             }
         }));

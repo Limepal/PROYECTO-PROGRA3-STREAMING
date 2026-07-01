@@ -5,6 +5,7 @@
 #include <vector>
 #include <algorithm>
 #include <mutex>
+#include <map>
 
 using namespace std;
 
@@ -53,7 +54,9 @@ public:
     MotorBusqueda();
     ~MotorBusqueda();
     void agregarPelicula(const Pelicula& p);
-    void agregarPeliculaConcurrente(const Pelicula& p, vector<ParPalabraId>& bufferLocal);
+    void prepararCarga(size_t cantidad);
+    void agregarPeliculaConcurrente(const Pelicula& p, int id,
+                                    vector<ParPalabraId>& bufferLocal);
     void mergeBuffers(const vector<vector<ParPalabraId>>& buffersLocales);
 
     string normalizarToken(const string &palabra);
@@ -64,6 +67,7 @@ public:
 
     vector<int> buscarPorTitulo(const string& subcadena); // Ahora soporta subcadenas
     vector<int> buscarEnTrama(const string& termino);
+    vector<int> buscarPorTag(const string& campo, const string& termino);
 
     int getTotalPeliculas() { return baseDatos.size(); }
     Pelicula obtenerPelicula(int id);

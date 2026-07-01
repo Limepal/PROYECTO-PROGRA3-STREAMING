@@ -180,22 +180,30 @@ void MotorBusqueda::agregarPelicula(const Pelicula& p) {
     if (baseDatos.empty()) baseDatos.reserve(35000);
 
     int nuevoId = baseDatos.size();
-    baseDatos.push_back(p);
+    Pelicula estable = p;
+    estable.id = nuevoId;
+    baseDatos.push_back(estable);
 
     insertarEnST(p.titulo, nuevoId);
     indexarTrama(p.trama, nuevoId);
 }
 
-void MotorBusqueda::agregarPeliculaConcurrente(const Pelicula& p, vector<ParPalabraId>& bufferLocal) {
-    int nuevoId;
+void MotorBusqueda::prepararCarga(size_t cantidad) {
+    lock_guard<mutex> lock(mtxST);
+    baseDatos.resize(cantidad);
+}
+
+void MotorBusqueda::agregarPeliculaConcurrente(const Pelicula& p, int id,
+                                                vector<ParPalabraId>& bufferLocal) {
     {
         lock_guard<mutex> lock(mtxST);
-        if (baseDatos.empty()) baseDatos.reserve(35000);
-        nuevoId = (int)baseDatos.size();
-        baseDatos.push_back(p);
-        insertarEnST(p.titulo, nuevoId);
+        if (id < 0 || static_cast<size_t>(id) >= baseDatos.size()) return;
+        Pelicula estable = p;
+        estable.id = id;
+        baseDatos[id] = estable;
+        insertarEnST(p.titulo, id);
     }
-    tokenizarYAgregar(p.trama, nuevoId, bufferLocal);
+    tokenizarYAgregar(p.trama, id, bufferLocal);
 }
 
 void MotorBusqueda::tokenizarYAgregar(const string& texto, int id, vector<ParPalabraId>& buffer) {
@@ -249,21 +257,53 @@ void MotorBusqueda::finalizarIndexacion() {
 
 vector<int> MotorBusqueda::buscarEnTrama(const string& termino) {
     string busqueda = normalizarToken(termino);
+    if (busqueda.empty()) return {};
 
+    // Camino rapido para palabras completas.
     auto it = lower_bound(indiceInvertido.begin(), indiceInvertido.end(), busqueda,
         [](const EntradaIndice& e, const string& val) {
             return e.palabra < val;
         });
 
-    if (it != indiceInvertido.end() && it->palabra == busqueda) {
-        return it->ids;
+    // El enunciado tambien exige sub-palabras en la sinopsis ("bar" en
+    // "barco"). El indice sigue evitando recorrer todas las peliculas:
+    // recorremos el vocabulario unico y unimos sus listas de IDs.
+    vector<int> resultados;
+    if (it != indiceInvertido.end() && it->palabra == busqueda)
+        resultados = it->ids;
+    for (const auto& entrada : indiceInvertido) {
+        if (entrada.palabra != busqueda &&
+            entrada.palabra.find(busqueda) != string::npos) {
+            resultados.insert(resultados.end(), entrada.ids.begin(), entrada.ids.end());
+        }
     }
-    return {};
+    sort(resultados.begin(), resultados.end());
+    resultados.erase(unique(resultados.begin(), resultados.end()), resultados.end());
+    return resultados;
+}
+
+vector<int> MotorBusqueda::buscarPorTag(const string& campo, const string& termino) {
+    string consulta = normalizarToken(termino);
+    if (consulta.empty()) return {};
+
+    vector<int> resultados;
+    for (const Pelicula& p : baseDatos) {
+        const string* valor = nullptr;
+        if (campo == "director") valor = &p.director;
+        else if (campo == "reparto" || campo == "casting" || campo == "cast") valor = &p.reparto;
+        else if (campo == "genero" || campo == "genre") valor = &p.genero;
+        else if (campo == "origen" || campo == "origin") valor = &p.origen;
+        else if (campo == "year" || campo == "anio") valor = &p.year;
+        if (valor && normalizarToken(*valor).find(consulta) != string::npos) {
+            resultados.push_back(p.id);
+        }
+    }
+    return resultados;
 }
 
 Pelicula MotorBusqueda::obtenerPelicula(int id) {
     if (id >= 0 && id < baseDatos.size()) {
         return baseDatos[id];
     }
-    return Pelicula{-1, "", "", "", ""};
+        return Pelicula{-1, "", "", "", "", "", "", ""};
 }

@@ -2,6 +2,7 @@
 #define ESTADOS_CONCRETOS_H
 #include "EstadoInterfaz.h"
 #include "InterfazStreaming.h"
+#include <limits>
 
 
 // EstadoInicio
@@ -82,23 +83,27 @@ public:
 class EstadoMenu : public EstadoInterfaz {
 public:
     bool ejecutar(InterfazStreaming& ctx) override {
-        ctx.titulo("STREAMFLIX - MENU PRINCIPAL");
+        ctx.titulo("PILIFLIX - MENU PRINCIPAL");
 
-        cout << "  [1] Buscar peliculas"   << endl;
-        cout << "  [2] Ver mas tarde"      << endl;
-        cout << "  [3] Mis Likes"          << endl;
-        cout << "  [4] Estadisticas"       << endl;
-        cout << "  [5] Pantalla de inicio" << endl;
-        cout << "  [0] Salir"              << endl;
-        ctx.linea(60, '=');
-        cout << "Selecciona: ";
+        cout << "  [1] Buscar peliculas\n"
+                "  [2] Ver mas tarde\n"
+                "  [3] Mis Likes\n"
+                "  [4] Estadisticas\n"
+                "  [5] Pantalla de inicio\n"
+                "  [0] Salir\n"
+                "============================================================\n"
+                "Selecciona: "
+             << flush;
 
         int op;
         if (!(cin >> op)) {
+            if (cin.eof()) return false;
             cin.clear();
             cin.ignore(1000, '\n');
+            cout << "Entrada invalida. Ingresa un numero del menu." << endl;
             return true;
         }
+        cin.ignore(numeric_limits<streamsize>::max(), '\n');
 
         switch (op) {
             case 1: ctx.cambiarEstado(new EstadoBusqueda());     break;
@@ -108,7 +113,7 @@ public:
             case 5: ctx.cambiarEstado(new EstadoInicio());       break;
             case 0:
                 ctx.titulo("HASTA PRONTO");
-                cout << "Gracias por usar StreamFlix." << endl;
+                cout << "Gracias por usar PiliFlix." << endl;
                 return false;
             default:
                 cout << "Opcion invalida." << endl;
