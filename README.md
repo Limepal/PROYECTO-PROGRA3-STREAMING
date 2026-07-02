@@ -30,10 +30,6 @@ cmake -S . -B build
 cmake --build build
 ```
 
-Coloque `wiki_movie_plots_deduped.csv` en el directorio desde el cual ejecutará
-el programa. En CLion, la configuración habitual usa `cmake-build-debug`, por
-lo que el CSV puede estar allí.
-
 ```bash
 cd build
 ./PiliFlix
