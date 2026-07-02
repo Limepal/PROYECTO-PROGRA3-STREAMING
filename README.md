@@ -131,17 +131,19 @@ trabajadores no esperan para insertar en un único árbol compartido.
 
 ### Comparación de tiempos
 
-Medición del procesamiento completo de 34 886 películas: limpieza del CSV,
-carga, construcción de los Suffix Trees y construcción del índice invertido.
+La medición cubre el procesamiento completo de las películas: limpieza del
+CSV, carga de datos, construcción de los Suffix Trees y construcción del índice
+invertido. Ambas versiones se ejecutaron con el mismo archivo y equipo.
 
-| Implementación concurrente | Tiempo (ms) | Tiempo (s) | Mejora |
-|---|---:|---:|---:|
-| Anterior: árbol con mutex y ordenamiento global | 65 135 | 65.135 | Base |
-| Optimizada: 8 árboles, sort local y fusión k-way | 37 588 | 37.588 | 1.73x |
+| Versión | Rama | Tiempo (ms) | Tiempo (s) |
+|---|---|---:|---:|
+| Con programación concurrente | `main` | 28 349.925 | 28.350 |
+| Sin programación concurrente | `MainSinConcurrencia` | 49 371.418 | 49.371 |
 
-Dos repeticiones adicionales de la versión optimizada obtuvieron 36.364 s y
-35.967 s. Los resultados dependen del procesador y deben compararse usando el
-mismo CSV, equipo y configuración de compilación.
+La versión concurrente obtuvo un speedup aproximado de **1.74x** y redujo el
+tiempo total en aproximadamente **42.6%**. La rama
+`MainSinConcurrencia` conserva la implementación secuencial utilizada como
+línea base de la comparación.
 
 ## Organización
 
@@ -155,15 +157,19 @@ mismo CSV, equipo y configuración de compilación.
 
 ## Referencias
 
+Cormen, T. H., Leiserson, C. E., Rivest, R. L., & Stein, C. (2022).
+*Introduction to algorithms* (4th ed.). MIT Press.
+
 Gamma, E., Helm, R., Johnson, R., & Vlissides, J. (1994). *Design patterns:
-Elements of reusable object-oriented software*. Addison-Wesley.
+Elements of reusable object-oriented software*. Addison-Wesley Professional.
 
-Gusfield, D. (1997). *Algorithms on strings, trees, and sequences: Computer
-science and computational biology*. Cambridge University Press.
+Williams, A. (2019). *C++ concurrency in action: Practical multithreading*
+(2nd ed.). Manning Publications.
 
-ISO/IEC. (2020). *ISO/IEC 14882:2020 Programming languages — C++*.
+Kleinberg, J., & Tardos, É. (2006). *Algorithm design*. Pearson.
 
-cppreference.com. (2026). *C++ reference*. https://en.cppreference.com/
+Gusfield, D. (1997). *Algorithms on Strings, Trees, and Sequences: Computer
+Science and Computational Biology*. Cambridge University Press.
 
-Wikipedia. (2018). *Wikipedia Movie Plots*. Kaggle.
-https://www.kaggle.com/datasets/jrobischon/wikipedia-movie-plots
+Ukkonen, E. (1995). On-line construction of suffix trees. *Algorithmica,
+14*(3), 249–260.
