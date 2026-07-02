@@ -59,6 +59,7 @@ private:
     vector<unique_ptr<ObservadorPerfil>> observadores;
     unique_ptr<EstrategiaRelevancia> estrategia;
     EstadoInterfaz*  estadoActual;   // Estado activo (patrón State)
+    EstadoInterfaz*  estadoSiguiente;
 
     // ---- Utilidades internas ----
     vector<string> tokenizar(const string& consulta);

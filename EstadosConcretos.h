@@ -95,12 +95,21 @@ public:
                 "Selecciona: "
              << flush;
 
+        string entrada;
+
+        if (!getline(cin >> ws, entrada)) {
+            return false;
+        }
+
+        istringstream flujo(entrada);
         int op;
-        if (!(cin >> op)) {
-            if (cin.eof()) return false;
-            cin.clear();
-            cin.ignore(1000, '\n');
-            cout << "Entrada invalida. Ingresa un numero del menu." << endl;
+        char sobrante;
+
+        if (!(flujo >> op) || (flujo >> sobrante)) {
+            cout << "Opcion invalida." << endl;
+            ctx.pausar();
+            return true;
+        }
             return true;
         }
         cin.ignore(numeric_limits<streamsize>::max(), '\n');

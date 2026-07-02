@@ -2,7 +2,6 @@
 #include "EstadosConcretos.h"
 #include <vector>
 #include <algorithm>
-#include <limits>
 
 using namespace std;
 
@@ -10,6 +9,7 @@ using namespace std;
 
 InterfazStreaming::InterfazStreaming(MotorBusqueda* m)
     : motor(m),
+
       estadoPendiente(nullptr),
       cuidadorPerfil("perfil_usuario.csv"),
       estrategia(make_unique<RelevanciaPonderada>()),
@@ -34,36 +34,20 @@ InterfazStreaming::~InterfazStreaming() {
     delete estadoPendiente;
 }
 
-
-// PATRON STATE - cambiarEstado
-//
-// Libera el estado anterior y activa el nuevo.
-// Los estados concretos llaman a este método para hacer
-// transiciones sin que el contexto conozca los detalles.
-
 void InterfazStreaming::cambiarEstado(EstadoInterfaz* nuevoEstado) {
     delete estadoPendiente;
     estadoPendiente = nuevoEstado;
 }
 
-// irAlMenu() se implementa AQUI (no en el .h) porque en este
-// punto EstadosConcretos.h ya fue incluido, por lo que EstadoMenu
-// es un tipo completo y "new EstadoMenu()" compila sin problemas.
 void InterfazStreaming::irAlMenu() {
     cambiarEstado(new EstadoMenu());
-
 }
-
-
-// BUCLE PRINCIPAL - delega en el estado activo
-//
-// Antes: switch(op) { case 1: pantallaBusqueda(); ... }
-// Ahora: el estado activo decide qué hacer y a dónde ir.
 
 void InterfazStreaming::ejecutar() {
     while (estadoActual != nullptr) {
         bool continuar = estadoActual->ejecutar(*this);
         if (!continuar) break;
+      
         if (estadoPendiente != nullptr) {
             delete estadoActual;
             estadoActual = estadoPendiente;
@@ -76,9 +60,6 @@ void InterfazStreaming::ejecutar() {
 // UTILIDADES VISUALES
 
 void InterfazStreaming::limpiarPantalla() {
-    // La ventana Run de CLion no siempre emula una terminal: `cls` puede
-    // recortar la salida y las secuencias ANSI pueden mostrarse como texto.
-    // Separar las vistas es portable y garantiza que el menu se vea completo.
     cout << "\n\n" << flush;
 }
 
@@ -96,6 +77,7 @@ void InterfazStreaming::titulo(const string& texto) {
     limpiarPantalla();
     int espacios = (60 - (int)texto.length()) / 2;
     if (espacios < 0) espacios = 0;
+
     const string borde(60, '=');
     cout << borde << '\n'
          << string(espacios, ' ') << texto << '\n'
@@ -328,62 +310,90 @@ void InterfazStreaming::mostrarResumen(int id, int numero, double relevancia) {
 }
 
 void InterfazStreaming::mostrarDetalle(int id) {
-    Pelicula p = motor->obtenerPelicula(id);
-    if (p.id == -1) {
-        cout << "Pelicula no encontrada." << endl;
-        pausar();
-        return;
-    }
-
-    titulo(p.titulo);
-
-    cout << "Año:      " << p.year     << endl;
-    cout << "Genero:   " << p.genero   << endl;
-    cout << "Director: " << p.director << endl;
-    cout << "Reparto:  " << p.reparto  << endl;
-    cout << "Origen:   " << p.origen   << endl;
-    linea(60, '-');
-    cout << "SINOPSIS:" << endl;
-
-    // Imprimir trama en líneas de ~55 chars
-    const int ANCHO = 55;
-    string trama = p.trama;
-    size_t pos = 0;
-    while (pos < trama.length()) {
-        size_t fin = min(pos + (size_t)ANCHO, trama.length());
-        if (fin < trama.length()) {
-            size_t espacio = trama.rfind(' ', fin);
-            if (espacio != string::npos && espacio > pos) fin = espacio;
+    while (true) {
+        Pelicula p = motor->obtenerPelicula(id);
+        if (p.id == -1) {
+            cout << "Pelicula no encontrada." << endl;
+            pausar();
+            return;
         }
-        cout << "  " << trama.substr(pos, fin - pos) << endl;
-        pos = fin;
-        while (pos < trama.length() && trama[pos] == ' ') pos++;
-    }
 
-    linea(60, '-');
+        titulo(p.titulo);
 
-    bool like = tieneLike(id);
-    bool vmt  = tieneVerMasTarde(id);
+        cout << "Año:      " << p.year     << endl;
+        cout << "Genero:   " << p.genero   << endl;
+        cout << "Director: " << p.director << endl;
+        cout << "Reparto:  " << p.reparto  << endl;
+        cout << "Origen:   " << p.origen   << endl;
+        linea(60, '-');
+        cout << "SINOPSIS:" << endl;
 
-    cout << endl;
-    cout << "OPCIONES:" << endl;
-    cout << "  [1] " << (like ? "Quitar Like"               : "Dar Like")       << endl;
-    cout << "  [2] " << (vmt  ? "Quitar de Ver mas tarde"   : "Ver mas tarde")  << endl;
-    cout << "  [3] Volver" << endl;
-    cout << "  [0] Menu principal" << endl;
+        const int ANCHO = 55;
+        string trama = p.trama;
+        size_t pos = 0;
+        while (pos < trama.length()) {
+            size_t fin = min(pos + (size_t)ANCHO, trama.length());
+            if (fin < trama.length()) {
+                size_t espacio = trama.rfind(' ', fin);
+                if (espacio != string::npos && espacio > pos) fin = espacio;
+            }
+            cout << "  " << trama.substr(pos, fin - pos) << endl;
+            pos = fin;
+            while (pos < trama.length() && trama[pos] == ' ') pos++;
+        }
 
-    int op;
-    cout << "Selecciona: ";
-    cin >> op;
-    cin.ignore(numeric_limits<streamsize>::max(), '\n');
+        linea(60, '-');
 
-    switch (op) {
-        case 1: toggleLike(id);         break;
-        case 2: toggleVerMasTarde(id);  break;
-        case 0: /* cambiará a Menu desde el estado */  return;
-        default: break;
-    }
+        bool like = tieneLike(id);
+        bool vmt  = tieneVerMasTarde(id);
+
+cout << endl;
+cout << "OPCIONES:" << endl;
+cout << "  [1] " << (like ? "Quitar Like" : "Dar Like") << endl;
+cout << "  [2] " << (vmt ? "Quitar de Ver mas tarde" : "Ver mas tarde") << endl;
+cout << "  [0] Volver a resultados" << endl;
+
+string entrada;
+cout << "Selecciona: " << flush;
+
+if (!getline(cin >> ws, entrada))
+    return;
+
+int op;
+
+try {
+    size_t usados;
+    op = stoi(entrada, &usados);
+
+    if (usados != entrada.size())
+        throw invalid_argument("caracteres sobrantes");
+} catch (...) {
+    cout << "Opcion invalida." << endl;
+    pausar();
+    continue;
 }
+
+        switch (op) {
+            case 1:
+                toggleLike(id);
+                pausar();
+                break;
+
+            case 2:
+                toggleVerMasTarde(id);
+                pausar();
+                break;
+
+            case 0:
+                return;
+
+            default:
+                cout << "Opcion invalida." << endl;
+                pausar();
+                break;
+        }
+    }
+} 
 
 void InterfazStreaming::paginarResultados(const vector<ResultadoBusqueda>& resultados,
                                           const string& tituloBusqueda) {
@@ -418,13 +428,14 @@ void InterfazStreaming::paginarResultados(const vector<ResultadoBusqueda>& resul
             cout << "  [+] Ver siguientes 5" << endl;
         if (pagina > 0)
             cout << "  [-] Ver anteriores 5" << endl;
-        cout << "  [1-" << (fin - inicio) << "] Ver detalle" << endl;
+        cout << "  [" << (inicio + 1) << "-" << fin << "] Ver detalle" << endl;
         cout << "  [0] Volver al menu"  << endl;
 
         string op;
-        cout << "Selecciona: ";
-        cin >> op;
-        cin.ignore(numeric_limits<streamsize>::max(), '\n');
+        cout << "Selecciona: " << flush;
+
+        if (!getline(cin >> ws, op))
+            return;
 
         if      (op == "+" && fin < resultados.size()) { pagina++;   }
         else if (op == "-" && pagina > 0)              { pagina--;   }
@@ -432,8 +443,12 @@ void InterfazStreaming::paginarResultados(const vector<ResultadoBusqueda>& resul
         else {
             try {
                 int num = stoi(op);
-                if (num >= 1 && num <= (int)(fin - inicio))
-                    mostrarDetalle(resultados[inicio + num - 1].id);
+                if (num >= (int)(inicio + 1) && num <= (int)fin)
+                    mostrarDetalle(resultados[num - 1].id);
+                else {
+                    cout << "Opcion invalida." << endl;
+                    pausar();
+                }
             } catch (...) {
                 cout << "Opcion invalida." << endl;
                 pausar();
@@ -487,9 +502,9 @@ void InterfazStreaming::pantallaBusqueda() {
     cout << "          origen:american o year:2010" << endl;
     cout << endl;
 
-    cout << "Ingresa tu busqueda: ";
+    cout << "Ingresa tu busqueda: " << flush;
     string consulta;
-    getline(cin, consulta);
+    getline(cin >> ws, consulta);
 
     if (consulta.empty()) {
         cout << "Busqueda cancelada." << endl;
