@@ -82,7 +82,7 @@ public:
 class EstadoMenu : public EstadoInterfaz {
 public:
     bool ejecutar(InterfazStreaming& ctx) override {
-        ctx.titulo("STREAMFLIX - MENU PRINCIPAL");
+        ctx.titulo("PILIFLIX - MENU PRINCIPAL");
 
         cout << "  [1] Buscar peliculas"   << endl;
         cout << "  [2] Ver mas tarde"      << endl;
@@ -91,12 +91,17 @@ public:
         cout << "  [5] Pantalla de inicio" << endl;
         cout << "  [0] Salir"              << endl;
         ctx.linea(60, '=');
-        cout << "Selecciona: ";
+        cout << "Selecciona: " << flush;
+
+        string entrada;
+        getline(cin >> ws, entrada);
 
         int op;
-        if (!(cin >> op)) {
-            cin.clear();
-            cin.ignore(1000, '\n');
+        try {
+            op = stoi(entrada);
+        } catch (...) {
+            cout << "Opcion invalida." << endl;
+            ctx.pausar();
             return true;
         }
 
@@ -108,7 +113,7 @@ public:
             case 5: ctx.cambiarEstado(new EstadoInicio());       break;
             case 0:
                 ctx.titulo("HASTA PRONTO");
-                cout << "Gracias por usar StreamFlix." << endl;
+                cout << "Gracias por usar PiliFlix." << endl;
                 return false;
             default:
                 cout << "Opcion invalida." << endl;

@@ -45,6 +45,7 @@ private:
     MotorBusqueda*   motor;
     PerfilUsuario    perfil;
     EstadoInterfaz*  estadoActual;   // Estado activo (patrón State)
+    EstadoInterfaz*  estadoSiguiente;
 
     // ---- Utilidades internas ----
     vector<string> tokenizar(const string& consulta);
