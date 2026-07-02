@@ -2,6 +2,7 @@
 #define ESTADOS_CONCRETOS_H
 #include "EstadoInterfaz.h"
 #include "InterfazStreaming.h"
+#include <limits>
 
 
 // EstadoInicio
@@ -84,26 +85,34 @@ public:
     bool ejecutar(InterfazStreaming& ctx) override {
         ctx.titulo("PILIFLIX - MENU PRINCIPAL");
 
-        cout << "  [1] Buscar peliculas"   << endl;
-        cout << "  [2] Ver mas tarde"      << endl;
-        cout << "  [3] Mis Likes"          << endl;
-        cout << "  [4] Estadisticas"       << endl;
-        cout << "  [5] Pantalla de inicio" << endl;
-        cout << "  [0] Salir"              << endl;
-        ctx.linea(60, '=');
-        cout << "Selecciona: " << flush;
+        cout << "  [1] Buscar peliculas\n"
+                "  [2] Ver mas tarde\n"
+                "  [3] Mis Likes\n"
+                "  [4] Estadisticas\n"
+                "  [5] Pantalla de inicio\n"
+                "  [0] Salir\n"
+                "============================================================\n"
+                "Selecciona: "
+             << flush;
 
         string entrada;
-        getline(cin >> ws, entrada);
 
+        if (!getline(cin >> ws, entrada)) {
+            return false;
+        }
+
+        istringstream flujo(entrada);
         int op;
-        try {
-            op = stoi(entrada);
-        } catch (...) {
+        char sobrante;
+
+        if (!(flujo >> op) || (flujo >> sobrante)) {
             cout << "Opcion invalida." << endl;
             ctx.pausar();
             return true;
         }
+            return true;
+        }
+        cin.ignore(numeric_limits<streamsize>::max(), '\n');
 
         switch (op) {
             case 1: ctx.cambiarEstado(new EstadoBusqueda());     break;

@@ -2,7 +2,6 @@
 #include "EstadosConcretos.h"
 #include <vector>
 #include <algorithm>
-#include <limits>
 
 using namespace std;
 
@@ -10,20 +9,34 @@ using namespace std;
 
 InterfazStreaming::InterfazStreaming(MotorBusqueda* m)
     : motor(m),
-      estadoActual(nullptr),
-      estadoSiguiente(nullptr)
+
+      estadoPendiente(nullptr),
+      cuidadorPerfil("perfil_usuario.csv"),
+      estrategia(make_unique<RelevanciaPonderada>()),
+      estadoActual(nullptr)
 {
+    observadores.push_back(make_unique<NotificadorConsola>());
+    if (cuidadorPerfil.existe())
+        restaurarMemento(cuidadorPerfil.restaurar());
+    perfil.likes.erase(remove_if(perfil.likes.begin(), perfil.likes.end(),
+        [this](int id) { return motor->obtenerPelicula(id).id == -1; }), perfil.likes.end());
+    perfil.verMasTarde.erase(remove_if(perfil.verMasTarde.begin(), perfil.verMasTarde.end(),
+        [this](int id) { return motor->obtenerPelicula(id).id == -1; }), perfil.verMasTarde.end());
+    for (int id : perfil.likes)
+        perfil.frecuenciaGeneros[motor->obtenerPelicula(id).genero]++;
+    // Estado inicial: pantalla de inicio (ver más tarde + recomendaciones)
     estadoActual = new EstadoInicio();
 }
 
 InterfazStreaming::~InterfazStreaming() {
+    cuidadorPerfil.guardar(crearMemento());
     delete estadoActual;
-    delete estadoSiguiente;
+    delete estadoPendiente;
 }
 
 void InterfazStreaming::cambiarEstado(EstadoInterfaz* nuevoEstado) {
-    delete estadoSiguiente;
-    estadoSiguiente = nuevoEstado;
+    delete estadoPendiente;
+    estadoPendiente = nuevoEstado;
 }
 
 void InterfazStreaming::irAlMenu() {
@@ -34,11 +47,11 @@ void InterfazStreaming::ejecutar() {
     while (estadoActual != nullptr) {
         bool continuar = estadoActual->ejecutar(*this);
         if (!continuar) break;
-
-        if (estadoSiguiente != nullptr) {
+      
+        if (estadoPendiente != nullptr) {
             delete estadoActual;
-            estadoActual = estadoSiguiente;
-            estadoSiguiente = nullptr;
+            estadoActual = estadoPendiente;
+            estadoPendiente = nullptr;
         }
     }
 }
@@ -47,13 +60,13 @@ void InterfazStreaming::ejecutar() {
 // UTILIDADES VISUALES
 
 void InterfazStreaming::limpiarPantalla() {
-    cout << string(40, '\n');
+    cout << "\n\n" << flush;
 }
 
 void InterfazStreaming::pausar() {
-    cout << "Presiona ENTER para continuar..." << flush;
-    string pausa;
-    getline(cin, pausa);
+    cout << "Presiona ENTER para continuar...";
+    string espera;
+    getline(cin, espera);
 }
 
 void InterfazStreaming::linea(int ancho, char c) {
@@ -62,12 +75,14 @@ void InterfazStreaming::linea(int ancho, char c) {
 
 void InterfazStreaming::titulo(const string& texto) {
     limpiarPantalla();
-    linea(60, '=');
     int espacios = (60 - (int)texto.length()) / 2;
     if (espacios < 0) espacios = 0;
-    cout << string(espacios, ' ') << texto << endl;
-    linea(60, '=');
-    cout << flush;
+
+    const string borde(60, '=');
+    cout << borde << '\n'
+         << string(espacios, ' ') << texto << '\n'
+         << borde << '\n'
+         << flush;
 }
 
 
@@ -92,15 +107,11 @@ vector<string> InterfazStreaming::tokenizar(const string& consulta) {
 // AYUDAS PARA VECTOR
 
 bool InterfazStreaming::tieneLike(int id) {
-    for (int i : perfil.likes)
-        if (i == id) return true;
-    return false;
+    return contiene(perfil.likes, id);
 }
 
 bool InterfazStreaming::tieneVerMasTarde(int id) {
-    for (int i : perfil.verMasTarde)
-        if (i == id) return true;
-    return false;
+    return contiene(perfil.verMasTarde, id);
 }
 
 void InterfazStreaming::eliminarDeVector(vector<int>& vec, int id) {
@@ -116,46 +127,51 @@ void InterfazStreaming::eliminarDeVector(vector<int>& vec, int id) {
 // ALGORITMO DE RELEVANCIA
 
 double InterfazStreaming::calcularRelevancia(int id,
-                                              const vector<string>& terminos,
-                                              bool enTitulo, bool enTrama) {
+                                               const vector<string>& terminos,
+                                               bool enTitulo, bool enTrama, bool enTag) {
     Pelicula p = motor->obtenerPelicula(id);
     if (p.id == -1) return 0.0;
+    return estrategia->calcular(p, terminos, enTitulo, enTrama, enTag,
+                                tieneVerMasTarde(id), perfil.frecuenciaGeneros);
+}
 
-    double score = 0.0;
+PerfilMemento InterfazStreaming::crearMemento() const {
+    return {perfil.likes, perfil.verMasTarde};
+}
 
-    if (enTitulo) {
-        score += 3.0;
-        for (const string& t : terminos)
-            if (p.titulo.find(t) == 0) score += 1.0;
-    }
-    if (enTrama) score += 2.0;
+void InterfazStreaming::restaurarMemento(const PerfilMemento& memento) {
+    perfil.likes = memento.obtenerLikes();
+    perfil.verMasTarde = memento.obtenerVerMasTarde();
+}
 
-    try {
-        int year = stoi(p.year);
-        if      (year >= 2015) score += 0.5;
-        else if (year >= 2010) score += 0.4;
-        else if (year >= 2000) score += 0.2;
-        else if (year >= 1990) score += 0.1;
-    } catch (...) {}
-
-    if (tieneVerMasTarde(id)) score += 0.2;
-    if (perfil.frecuenciaGeneros.count(p.genero))
-        score += 0.1 * perfil.frecuenciaGeneros[p.genero];
-
-    return score;
+void InterfazStreaming::notificar(EventoPerfil evento, const string& nombre) {
+    for (const auto& observador : observadores)
+        observador->actualizar(evento, nombre);
 }
 
 
 // BUSQUEDA GENERAL
 
 vector<ResultadoBusqueda> InterfazStreaming::buscar(const string& consulta) {
-    vector<string> terminos = tokenizar(consulta);
-    if (terminos.empty() && consulta.length() >= 2)
-        terminos.push_back(consulta);
+    string campoTag, valorConsulta = consulta;
+    const size_t separador = consulta.find(':');
+    if (separador != string::npos) {
+        campoTag = motor->normalizarToken(consulta.substr(0, separador));
+        valorConsulta = consulta.substr(separador + 1);
+    }
+    vector<string> terminos = tokenizar(valorConsulta);
+    if (terminos.empty() && valorConsulta.length() >= 2)
+        terminos.push_back(valorConsulta);
 
     map<int, vector<string>> coincidencias;
 
+    if (!campoTag.empty()) {
+        for (int id : motor->buscarPorTag(campoTag, valorConsulta))
+            coincidencias[id].push_back("tag");
+    }
+
     for (const string& term : terminos) {
+        if (!campoTag.empty()) break;
         for (int id : motor->buscarPorTitulo(term)) {
             bool yaEsta = false;
             for (const string& s : coincidencias[id])
@@ -174,13 +190,14 @@ vector<ResultadoBusqueda> InterfazStreaming::buscar(const string& consulta) {
     for (const auto& par : coincidencias) {
         ResultadoBusqueda rb;
         rb.id = par.first;
-        bool enTitulo = false, enTrama = false;
+        bool enTitulo = false, enTrama = false, enTag = false;
         for (const string& tipo : par.second) {
             if (tipo == "titulo") enTitulo = true;
             if (tipo == "trama")  enTrama  = true;
+            if (tipo == "tag")    enTag    = true;
         }
-        rb.relevancia        = calcularRelevancia(par.first, terminos, enTitulo, enTrama);
-        rb.tipoCoincidencia  = enTitulo ? "titulo" : "trama";
+        rb.relevancia        = calcularRelevancia(par.first, terminos, enTitulo, enTrama, enTag);
+        rb.tipoCoincidencia  = enTitulo ? "titulo" : enTrama ? "trama" : "tag";
         resultados.push_back(rb);
     }
 
@@ -205,12 +222,14 @@ void InterfazStreaming::toggleLike(int id) {
         perfil.frecuenciaGeneros[p.genero]--;
         if (perfil.frecuenciaGeneros[p.genero] <= 0)
             perfil.frecuenciaGeneros.erase(p.genero);
-        cout << "Like removido: " << p.titulo << endl;
+        notificar(EventoPerfil::LikeEliminado, p.titulo);
     } else {
         perfil.likes.push_back(id);
         perfil.frecuenciaGeneros[p.genero]++;
-        cout << "Like agregado: " << p.titulo << endl;
+        notificar(EventoPerfil::LikeAgregado, p.titulo);
     }
+    if (!cuidadorPerfil.guardar(crearMemento()))
+        cerr << "Advertencia: no se pudo guardar el perfil." << endl;
 }
 
 void InterfazStreaming::toggleVerMasTarde(int id) {
@@ -219,11 +238,13 @@ void InterfazStreaming::toggleVerMasTarde(int id) {
 
     if (tieneVerMasTarde(id)) {
         eliminarDeVector(perfil.verMasTarde, id);
-        cout << "Removido de Ver mas tarde: " << p.titulo << endl;
+        notificar(EventoPerfil::PendienteEliminado, p.titulo);
     } else {
         perfil.verMasTarde.push_back(id);
-        cout << "Agregado a Ver mas tarde: " << p.titulo << endl;
+        notificar(EventoPerfil::PendienteAgregado, p.titulo);
     }
+    if (!cuidadorPerfil.guardar(crearMemento()))
+        cerr << "Advertencia: no se pudo guardar el perfil." << endl;
 }
 
 
@@ -326,43 +347,53 @@ void InterfazStreaming::mostrarDetalle(int id) {
         bool like = tieneLike(id);
         bool vmt  = tieneVerMasTarde(id);
 
-        cout << endl;
-        cout << "OPCIONES:" << endl;
-        cout << "  [1] " << (like ? "Quitar Like" : "Dar Like") << endl;
-        cout << "  [2] " << (vmt ? "Quitar de Ver mas tarde" : "Ver mas tarde") << endl;
-        cout << "  [0] Volver a resultados" << endl;
+cout << endl;
+cout << "OPCIONES:" << endl;
+cout << "  [1] " << (like ? "Quitar Like" : "Dar Like") << endl;
+cout << "  [2] " << (vmt ? "Quitar de Ver mas tarde" : "Ver mas tarde") << endl;
+cout << "  [0] Volver a resultados" << endl;
 
-        string entrada;
-        cout << "Selecciona: ";
-        getline(cin >> ws, entrada);
+string entrada;
+cout << "Selecciona: " << flush;
 
-        int op;
-        try {
-            op = stoi(entrada);
-        } catch (...) {
-            cout << "Opcion invalida." << endl;
-            pausar();
-            continue;
-        }
+if (!getline(cin >> ws, entrada))
+    return;
+
+int op;
+
+try {
+    size_t usados;
+    op = stoi(entrada, &usados);
+
+    if (usados != entrada.size())
+        throw invalid_argument("caracteres sobrantes");
+} catch (...) {
+    cout << "Opcion invalida." << endl;
+    pausar();
+    continue;
+}
 
         switch (op) {
             case 1:
                 toggleLike(id);
                 pausar();
                 break;
+
             case 2:
                 toggleVerMasTarde(id);
                 pausar();
                 break;
+
             case 0:
                 return;
+
             default:
                 cout << "Opcion invalida." << endl;
                 pausar();
                 break;
         }
     }
-}
+} 
 
 void InterfazStreaming::paginarResultados(const vector<ResultadoBusqueda>& resultados,
                                           const string& tituloBusqueda) {
@@ -402,7 +433,9 @@ void InterfazStreaming::paginarResultados(const vector<ResultadoBusqueda>& resul
 
         string op;
         cout << "Selecciona: " << flush;
-        getline(cin >> ws, op);
+
+        if (!getline(cin >> ws, op))
+            return;
 
         if      (op == "+" && fin < resultados.size()) { pagina++;   }
         else if (op == "-" && pagina > 0)              { pagina--;   }
@@ -465,6 +498,8 @@ void InterfazStreaming::pantallaBusqueda() {
     cout << "Puedes buscar por:" << endl;
     cout << "  - Palabra o frase en titulo o sinopsis" << endl;
     cout << "  - Sub-palabra (ej: 'bar' encuentra 'barco')" << endl;
+    cout << "  - Tags: director:nolan, reparto:chaplin, genero:drama," << endl;
+    cout << "          origen:american o year:2010" << endl;
     cout << endl;
 
     cout << "Ingresa tu busqueda: " << flush;

@@ -7,8 +7,13 @@
 #include <string>
 #include <algorithm>
 #include <map>
+#include <memory>
 #include "MotorBusqueda.h"
 #include "EstadoInterfaz.h"   // <-- Patrón State
+
+#include "PerfilMemento.h"
+#include "ObservadorPerfil.h"
+#include "EstrategiaRelevancia.h"
 
 using namespace std;
 
@@ -28,6 +33,11 @@ struct ResultadoBusqueda {
     string tipoCoincidencia;
 };
 
+template <typename Contenedor, typename Valor>
+bool contiene(const Contenedor& contenedor, const Valor& valor) {
+    return find(contenedor.begin(), contenedor.end(), valor) != contenedor.end();
+}
+
 
 // CLASE CONTEXTO - InterfazStreaming
 //
@@ -44,6 +54,10 @@ class InterfazStreaming {
 private:
     MotorBusqueda*   motor;
     PerfilUsuario    perfil;
+    EstadoInterfaz*  estadoPendiente;
+    CuidadorPerfil cuidadorPerfil;
+    vector<unique_ptr<ObservadorPerfil>> observadores;
+    unique_ptr<EstrategiaRelevancia> estrategia;
     EstadoInterfaz*  estadoActual;   // Estado activo (patrón State)
     EstadoInterfaz*  estadoSiguiente;
 
@@ -53,10 +67,13 @@ private:
     bool           tieneVerMasTarde(int id);
     void           eliminarDeVector(vector<int>& vec, int id);
     double         calcularRelevancia(int id, const vector<string>& terminos,
-                                      bool enTitulo, bool enTrama);
+                                      bool enTitulo, bool enTrama, bool enTag = false);
     vector<ResultadoBusqueda> buscar(const string& consulta);
     void           toggleLike(int id);
     void           toggleVerMasTarde(int id);
+    PerfilMemento  crearMemento() const;
+    void           restaurarMemento(const PerfilMemento& memento);
+    void           notificar(EventoPerfil evento, const string& titulo);
     vector<ResultadoBusqueda> recomendaciones(int cantidad);
     void           mostrarResumen(int id, int numero, double relevancia);
     void           paginarResultados(const vector<ResultadoBusqueda>& resultados,

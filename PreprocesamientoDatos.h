@@ -1,7 +1,7 @@
 // PreprocesamientoDatos.h
 
-#ifndef PROYECTO_PROGRAMACION_PREPROCESAMIENTODATOS_H
-#define PROYECTO_PROGRAMACION_PREPROCESAMIENTODATOS_H
+#ifndef PILIFLIX_PREPROCESAMIENTODATOS_H
+#define PILIFLIX_PREPROCESAMIENTODATOS_H
 
 #include <string>
 #include <vector>
@@ -16,6 +16,8 @@ struct DatosPelicula {
     std::string trama;
 };
 
+std::string procesarCadena(const std::string& sucia);
+
 // Limpia y genera un nuevo CSV procesado
 void LimpiarDatos(const std::string& nombreEntrada,
                   const std::string& nombreSalida);
@@ -25,4 +27,4 @@ std::vector<DatosPelicula> CargarDatosLimpios(
     const std::string& nombreArchivo
 );
 
-#endif //PROYECTO_PROGRAMACION_PREPROCESAMIENTODATOS_H
+#endif

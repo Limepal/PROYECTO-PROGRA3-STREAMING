@@ -14,8 +14,14 @@ using namespace std;
 
 int main() {
     MotorBusqueda motor;
+    
 
-    cout << "Piliflix- Cargando base de datos..." << endl;
+
+    //Inicio de medicion de tiempo
+    auto inicioProcesamiento = chrono::steady_clock::now();
+
+    cout << "PiliFlix - Cargando base de datos..." << endl;
+    ////////
 
     // Fase 1: Carga de datos
     LimpiarDatos("wiki_movie_plots_deduped.csv", "peliculasLimpias.csv");
@@ -35,6 +41,7 @@ int main() {
     size_t bloque = (total + numHilos - 1) / numHilos;
 
     atomic<size_t> progreso{0};
+    motor.prepararCarga(total);
 
     // Hilo dedicado a dibujar la barra de progreso
     thread hiloProgreso([&]() {
@@ -76,7 +83,7 @@ int main() {
                 p.director = datos[i].director;
                 p.reparto = datos[i].reparto;
                 p.origen = datos[i].origen;
-                motor.agregarPeliculaConcurrente(p, buffersLocales[h]);
+                motor.agregarPeliculaConcurrente(p, static_cast<int>(i), buffersLocales[h]);
                 progreso++;
             }
         }));
@@ -87,9 +94,24 @@ int main() {
     motor.mergeBuffers(buffersLocales);
     motor.finalizarIndexacion();
 
+    //Fin de medicion de tiempo
+    auto finProcesamiento = chrono::steady_clock::now();
+
+    double tiempoMs = chrono::duration<double, milli>(
+        finProcesamiento - inicioProcesamiento
+    ).count();
+
+    double tiempoSegundos = tiempoMs / 1000.0;
+
+    cout << fixed << setprecision(3);
+    cout << "Tiempo total de procesamiento: "
+         << tiempoMs << " ms ("
+         << tiempoSegundos << " segundos)" << endl;
+
     cout << "Indexacion completada (" << motor.getTotalPeliculas() << " peliculas)." << endl;
     cout << "Presiona ENTER para iniciar...";
     cin.get();
+    /////
 
     // Fase 3: Iniciar interfaz
     InterfazStreaming app(&motor);
