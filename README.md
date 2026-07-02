@@ -10,9 +10,6 @@ Proyecto final de Programación III (2026-1), implementado completamente en C++2
 - Dayron Saiyuk Cueva Loayza
 - Gabriel Marcelo Díaz Carrión
 
-> La consigna admite como máximo cuatro integrantes. El equipo debe confirmar con
-> el docente cuáles cuatro integrantes serán evaluados antes de la entrega.
-
 ## Funcionalidades
 
 - Lectura y limpieza secuencial del CSV.
