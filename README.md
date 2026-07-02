@@ -92,12 +92,6 @@ Se eligió frente a un Trie convencional porque este último solo resuelve
 prefijos. La compresión reduce nodos respecto de un Suffix Trie carácter por
 carácter.
 
-### Índice invertido
-
-La sinopsis se tokeniza y almacena como pares `(palabra, id)`. Tras ordenar con
-`std::sort`, se agrupan IDs y se usa `std::lower_bound` para coincidencias
-exactas. Para subpalabras se recorre el vocabulario único, no todas las
-películas, y se unen IDs con `std::sort` + `std::unique`.
 
 ### Ranking
 
