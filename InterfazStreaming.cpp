@@ -181,41 +181,55 @@ vector<ResultadoBusqueda> InterfazStreaming::buscar(const string& consulta) {
     if (terminos.empty() && valorConsulta.length() >= 2)
         terminos.push_back(valorConsulta);
 
-    map<int, vector<string>> coincidencias;
+    // NUEVA ESTRUCTURA: Map de ID de Pelicula -> Map(Tipo de match -> Conteo de coincidencias)
+    map<int, map<string, int>> coincidencias;
 
     if (!campoTag.empty()) {
         for (int id : motor->buscarPorTag(campoTag, valorConsulta))
-            coincidencias[id].push_back("tag");
+            coincidencias[id]["tag"]++;
     }
 
+    // El conteo reemplaza tu antiguo loop "yaEsta"
     for (const string& term : terminos) {
         if (!campoTag.empty()) break;
+
         for (int id : motor->buscarPorTitulo(term)) {
-            bool yaEsta = false;
-            for (const string& s : coincidencias[id])
-                if (s == "titulo") { yaEsta = true; break; }
-            if (!yaEsta) coincidencias[id].push_back("titulo");
+            coincidencias[id]["titulo"]++;
         }
         for (int id : motor->buscarEnTrama(term)) {
-            bool yaEsta = false;
-            for (const string& s : coincidencias[id])
-                if (s == "trama") { yaEsta = true; break; }
-            if (!yaEsta) coincidencias[id].push_back("trama");
+            coincidencias[id]["trama"]++;
         }
     }
 
     vector<ResultadoBusqueda> resultados;
     for (const auto& par : coincidencias) {
-        ResultadoBusqueda rb;
-        rb.id = par.first;
-        bool enTitulo = false, enTrama = false, enTag = false;
-        for (const string& tipo : par.second) {
-            if (tipo == "titulo") enTitulo = true;
-            if (tipo == "trama")  enTrama  = true;
-            if (tipo == "tag")    enTag    = true;
+        int id = par.first;
+        const auto& conteos = par.second; // Esto contiene {"titulo": 2, "trama": 1, etc.}
+
+        // Restauramos tus booleanos originales basándonos en si la llave existe
+        bool enTitulo = conteos.count("titulo") > 0;
+        bool enTrama  = conteos.count("trama") > 0;
+        bool enTag    = conteos.count("tag") > 0;
+
+        // EL FILTRO SALVAVIDAS (Strict AND):
+        // Obtenemos el máximo de términos que hicieron match en un solo campo
+        int maxCoincidencias = 0;
+        if (enTitulo) maxCoincidencias = max(maxCoincidencias, conteos.at("titulo"));
+        if (enTrama)  maxCoincidencias = max(maxCoincidencias, conteos.at("trama"));
+
+        // Si buscaste 2 términos ("spider" y "man") y el título solo tiene 1 ("man"), lo ignoramos.
+        // Esto elimina las 26,000 basuras y deja solo lo relevante.
+        if (campoTag.empty() && terminos.size() > 0 && maxCoincidencias < terminos.size()) {
+            continue;
         }
-        rb.relevancia        = calcularRelevancia(par.first, terminos, enTitulo, enTrama, enTag);
-        rb.tipoCoincidencia  = enTitulo ? "titulo" : enTrama ? "trama" : "tag";
+
+        ResultadoBusqueda rb;
+        rb.id = id;
+
+        // Seguimos usando tu función original de relevancia
+        rb.relevancia = calcularRelevancia(id, terminos, enTitulo, enTrama, enTag);
+        rb.tipoCoincidencia = enTitulo ? "titulo" : enTrama ? "trama" : "tag";
+
         resultados.push_back(rb);
     }
 
@@ -226,7 +240,6 @@ vector<ResultadoBusqueda> InterfazStreaming::buscar(const string& consulta) {
 
     return resultados;
 }
-
 
 // GESTION DE LIKES Y VER MAS TARDE
 

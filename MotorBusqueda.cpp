@@ -156,9 +156,13 @@ vector<int> MotorBusqueda::buscarPorTitulo(const string& subcadena) {
         }
 
         if (i == query.length()) {
-            // Encontramos el término de búsqueda completo (esté o no a mitad de arista).
-            // Retornamos los IDs cacheados (ya vienen ordenados y sin duplicados de id).
-            return hijoCoincidente->peliculasIDs;
+            // FIX: Copiar y ordenar los IDs porque la inserción concurrente rompe el orden.
+            // Esto evita que algoritmos posteriores (como set_union) eliminen la mitad de los datos.
+            vector<int> resultados = hijoCoincidente->peliculasIDs;
+            sort(resultados.begin(), resultados.end());
+            resultados.erase(unique(resultados.begin(), resultados.end()), resultados.end());
+
+            return resultados;
         }
 
         if (j < arista.length()) {
@@ -256,31 +260,68 @@ void MotorBusqueda::finalizarIndexacion() {
 }
 
 vector<int> MotorBusqueda::buscarEnTrama(const string& termino) {
-    string busqueda = normalizarToken(termino);
-    if (busqueda.empty()) return {};
+    if (termino.empty()) return {};
 
-    // Camino rapido para palabras completas.
-    auto it = lower_bound(indiceInvertido.begin(), indiceInvertido.end(), busqueda,
-        [](const EntradaIndice& e, const string& val) {
-            return e.palabra < val;
-        });
-
-    // El enunciado tambien exige sub-palabras en la sinopsis ("bar" en
-    // "barco"). El indice sigue evitando recorrer todas las peliculas:
-    // recorremos el vocabulario unico y unimos sus listas de IDs.
-    vector<int> resultados;
-    if (it != indiceInvertido.end() && it->palabra == busqueda)
-        resultados = it->ids;
-    for (const auto& entrada : indiceInvertido) {
-        if (entrada.palabra != busqueda &&
-            entrada.palabra.find(busqueda) != string::npos) {
-            resultados.insert(resultados.end(), entrada.ids.begin(), entrada.ids.end());
+    // 1. Tokenizar la búsqueda de la misma manera que se tokenizó la trama
+    vector<string> palabrasBusqueda;
+    string palabra;
+    for (size_t i = 0; i <= termino.length(); ++i) {
+        if (i == termino.length() || isspace((unsigned char)termino[i])) {
+            if (!palabra.empty()) {
+                string limpia = normalizarToken(palabra);
+                if (limpia.length() > 2) palabrasBusqueda.push_back(limpia);
+                palabra.clear();
+            }
+        } else {
+            palabra += termino[i];
         }
     }
-    sort(resultados.begin(), resultados.end());
-    resultados.erase(unique(resultados.begin(), resultados.end()), resultados.end());
-    return resultados;
+
+    if (palabrasBusqueda.empty()) return {};
+
+    vector<int> resultadosFinales;
+    bool primeraPalabra = true;
+
+    // 2. Buscar cada palabra y unificar los resultados
+    for (const string& busqueda : palabrasBusqueda) {
+        vector<int> resultadosParciales;
+
+        auto it = lower_bound(indiceInvertido.begin(), indiceInvertido.end(), busqueda,
+            [](const EntradaIndice& e, const string& val) {
+                return e.palabra < val;
+            });
+
+        if (it != indiceInvertido.end() && it->palabra == busqueda)
+            resultadosParciales = it->ids;
+
+        for (const auto& entrada : indiceInvertido) {
+            if (entrada.palabra != busqueda &&
+                entrada.palabra.find(busqueda) != string::npos) {
+                resultadosParciales.insert(resultadosParciales.end(), entrada.ids.begin(), entrada.ids.end());
+            }
+        }
+
+        sort(resultadosParciales.begin(), resultadosParciales.end());
+        resultadosParciales.erase(unique(resultadosParciales.begin(), resultadosParciales.end()), resultadosParciales.end());
+
+        // Si es la primera palabra, inicializamos. Si no, podemos hacer una unión (o intersección, según prefieras)
+        if (primeraPalabra) {
+            resultadosFinales = move(resultadosParciales);
+            primeraPalabra = false;
+        } else {
+            vector<int> combinados;
+            // Usamos set_union para que devuelva la pelicula si coincide al menos una palabra
+            // Usa set_intersection si quieres ser estricto (ambas palabras deben estar)
+            set_union(resultadosFinales.begin(), resultadosFinales.end(),
+                      resultadosParciales.begin(), resultadosParciales.end(),
+                      back_inserter(combinados));
+            resultadosFinales = move(combinados);
+        }
+    }
+
+    return resultadosFinales;
 }
+
 
 vector<int> MotorBusqueda::buscarPorTag(const string& campo, const string& termino) {
     string consulta = normalizarToken(termino);

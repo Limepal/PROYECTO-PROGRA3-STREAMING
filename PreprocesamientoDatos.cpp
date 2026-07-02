@@ -155,13 +155,60 @@ string eliminarStopwords(const string& texto) {
 
     return resultado;
 }
+//parser robusto
+
+vector<vector<string>> ParsearCSVRobusto(istream& entrada) {
+    vector<vector<string>> filas;
+    vector<string> fila_actual;
+    string campo_actual;
+
+    bool dentroComillas = false;
+    char c;
+
+    while (entrada.get(c)) {
+        if (c == '"') {
+            if (dentroComillas && entrada.peek() == '"') {
+                campo_actual += '"';
+                entrada.get(); // Consumir comilla doble escapada
+            } else {
+                dentroComillas = !dentroComillas;
+            }
+        }
+        else if (c == ',' && !dentroComillas) {
+            fila_actual.push_back(campo_actual);
+            campo_actual.clear();
+        }
+        else if ((c == '\n' || c == '\r') && !dentroComillas) {
+            if (c == '\r' && entrada.peek() == '\n') {
+                entrada.get(); // Consumir \n en finales de linea Windows
+            }
+            if (!campo_actual.empty() || !fila_actual.empty()) {
+                fila_actual.push_back(campo_actual);
+                filas.push_back(fila_actual);
+                fila_actual.clear();
+                campo_actual.clear();
+            }
+        }
+        else {
+            campo_actual += c;
+        }
+    }
+
+    if (!campo_actual.empty() || !fila_actual.empty()) {
+        fila_actual.push_back(campo_actual);
+        filas.push_back(fila_actual);
+    }
+
+    return filas;
+}
+
+
 
 // =========================
 // LIMPIAR CSV (PARALELO)
 // =========================
 
-void LimpiarDatos(const string& nombreEntrada,
-                  const string& nombreSalida) {
+void LimpiarDatos(const string& nombreEntrada, const string& nombreSalida) {
 
     ifstream entrada(nombreEntrada);
     if (!entrada.is_open()) {
@@ -169,20 +216,16 @@ void LimpiarDatos(const string& nombreEntrada,
         return;
     }
 
-    // Leer todas las lineas a memoria
-    vector<string> lineas;
-    string linea;
-    bool esCabecera = true;
-    while (getline(entrada, linea)) {
-        if (esCabecera) {
-            esCabecera = false;
-            continue;
-        }
-        lineas.push_back(move(linea));
-    }
+    // Leer y parsear el archivo completo a memoria correctamente
+    vector<vector<string>> filas = ParsearCSVRobusto(entrada);
     entrada.close();
 
-    if (lineas.empty()) {
+    // Eliminar la cabecera si el archivo no está vacío
+    if (!filas.empty()) {
+        filas.erase(filas.begin());
+    }
+
+    if (filas.empty()) {
         ofstream salida(nombreSalida);
         salida << "Year,Title,Origin,Director,Cast,Genre,Plot\n";
         return;
@@ -191,17 +234,20 @@ void LimpiarDatos(const string& nombreEntrada,
     // Procesar en paralelo
     unsigned int numHilos = thread::hardware_concurrency();
     if (numHilos == 0) numHilos = 4;
-    size_t bloque = (lineas.size() + numHilos - 1) / numHilos;
+    size_t bloque = (filas.size() + numHilos - 1) / numHilos;
 
-    vector<string> resultados(lineas.size());
+    vector<string> resultados(filas.size());
     vector<future<void>> futuros;
 
     for (unsigned int h = 0; h < numHilos; h++) {
         size_t inicio = h * bloque;
-        size_t fin = min(inicio + bloque, lineas.size());
-        futuros.push_back(async(launch::async, [&lineas, &resultados, inicio, fin]() {
+        size_t fin = min(inicio + bloque, filas.size());
+
+        futuros.push_back(async(launch::async, [&filas, &resultados, inicio, fin]() {
             for (size_t i = inicio; i < fin; i++) {
-                vector<string> campos = separarLinea(lineas[i]);
+                const vector<string>& campos = filas[i];
+
+                // Mantenemos tu logica original de indices (0 al 5, y 7)
                 if (campos.size() >= 8) {
                     const string& year = campos[0];
                     string titulo  = eliminarStopwords(procesarCadena(campos[1]));
@@ -213,6 +259,8 @@ void LimpiarDatos(const string& nombreEntrada,
                                     : eliminarStopwords(procesarCadena(campos[5]));
                     string trama   = eliminarStopwords(procesarCadena(campos[7]));
 
+                    // Se aplanan las lineas procesadas (quitando \n internos si los hubiera)
+                    // para que el CSV de salida sea mas sencillo de procesar despues.
                     resultados[i] = year + "," +
                         "\"" + titulo + "\"," +
                         "\"" + origen + "\"," +
