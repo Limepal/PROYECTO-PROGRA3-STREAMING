@@ -4,7 +4,6 @@
 #include <string>
 #include <vector>
 #include <algorithm>
-#include <mutex>
 #include <map>
 
 using namespace std;
@@ -43,7 +42,6 @@ private:
     NodoST* raizST;
     vector<EntradaIndice> indiceInvertido;
     vector<ParPalabraId> bufferIndexacion;
-    mutex mtxST;
 
     // Helper recursivo para la inserción de sufijos
     void insertarSufijo(NodoST* nodo, string sufijo, int id);
@@ -54,10 +52,6 @@ public:
     MotorBusqueda();
     ~MotorBusqueda();
     void agregarPelicula(const Pelicula& p);
-    void prepararCarga(size_t cantidad);
-    void agregarPeliculaConcurrente(const Pelicula& p, int id,
-                                    vector<ParPalabraId>& bufferLocal);
-    void mergeBuffers(const vector<vector<ParPalabraId>>& buffersLocales);
 
     string normalizarToken(const string &palabra);
 

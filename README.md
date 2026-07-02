@@ -15,7 +15,7 @@ Proyecto final de Programación III (2026-1), implementado completamente en C++2
 
 ## Funcionalidades
 
-- Lectura y limpieza paralela del CSV.
+- Lectura y limpieza secuencial del CSV.
 - Suffix Tree comprimido para buscar cualquier subcadena en títulos.
 - Índice invertido para palabras y subpalabras en sinopsis.
 - Frases con semántica OR: se combinan las coincidencias de cada término.
@@ -115,33 +115,32 @@ Para cada Like se buscan películas que comparten términos significativos de la
 sinopsis. Se suma 0.3 por término compartido y 1.0 si coincide el género. Los
 Likes existentes quedan excluidos.
 
-## Programación paralela
+## Versión secuencial para comparación
 
-Se utiliza `std::async`, `std::thread`, buffers locales, `std::atomic` y
-`std::mutex`:
+Esta rama (`MainSinConcurrencia`) procesa secuencialmente la limpieza, la carga
+y la indexación. No utiliza `std::thread`, `std::async`, `std::future`,
+`std::atomic` ni `std::mutex`.
 
-- limpieza y carga del CSV por bloques;
-- tokenización de sinopsis en buffers locales sin contención;
-- IDs estables según la posición del CSV;
-- exclusión mutua únicamente al insertar en el árbol compartido;
-- hilo independiente para el progreso.
+`main.cpp` utiliza `std::chrono::steady_clock` para medir desde antes de limpiar
+el CSV hasta después de terminar el Suffix Tree y el índice invertido. El menú
+y la espera del usuario quedan fuera de la medición.
 
-### Comparación de tiempos
+La salida tiene este formato:
 
-Medición reproducible del trabajo de normalización sobre 330 registros,
-606 repeticiones (199 980 líneas procesadas), realizada el 1 de julio de 2026
-en el equipo de desarrollo:
+```text
+Tiempo total de procesamiento: ... ms (... segundos)
+```
 
-| Operación | Secuencial (ms) | Paralelo (ms) | Speedup |
-|---|---:|---:|---:|
-| Normalización de texto | 5802 | 3791 | 1.53x |
+Para comparar esta rama con la concurrente se debe usar el mismo CSV, equipo y
+configuración Release. El speedup se calcula como:
 
-El resultado depende del procesador y puede repetirse en el equipo de
-exposición usando el mismo conjunto de datos y número de repeticiones.
+```text
+speedup = tiempo secuencial / tiempo concurrente
+```
 
 ## Organización
 
-- `PreprocesamientoDatos.*`: parsing, limpieza y carga paralela.
+- `PreprocesamientoDatos.*`: parsing, limpieza y carga secuencial.
 - `MotorBusqueda.*`: Suffix Tree, índice invertido y tags.
 - `InterfazStreaming.*`: ranking, recomendaciones, perfil y vistas.
 - `EstadoInterfaz.h`, `EstadosConcretos.h`: patrón State.
