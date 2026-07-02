@@ -157,13 +157,16 @@ Cormen, T. H., Leiserson, C. E., Rivest, R. L., & Stein, C. (2022).
 Gamma, E., Helm, R., Johnson, R., & Vlissides, J. (1994). *Design patterns:
 Elements of reusable object-oriented software*. Addison-Wesley Professional.
 
-Williams, A. (2019). *C++ concurrency in action: Practical multithreading*
-(2nd ed.). Manning Publications.
-
-Kleinberg, J., & Tardos, É. (2006). *Algorithm design*. Pearson.
-
 Gusfield, D. (1997). *Algorithms on Strings, Trees, and Sequences: Computer
 Science and Computational Biology*. Cambridge University Press.
 
+Kleinberg, J., & Tardos, É. (2006). *Algorithm design*. Pearson.
+
+McCool, M., Reinders, J., & Robison, A. D. (2012). Structured parallel programming: 
+Patterns for efficient computation. Morgan Kaufmann.
+
 Ukkonen, E. (1995). On-line construction of suffix trees. *Algorithmica,
 14*(3), 249–260.
+
+Williams, A. (2019). *C++ concurrency in action: Practical multithreading*
+(2nd ed.). Manning Publications.
