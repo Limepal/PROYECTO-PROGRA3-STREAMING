@@ -82,11 +82,15 @@ public:
     void pantallaEstadisticas();
     void mostrarDetalle(int id);
 
+
     // ---- Utilidades visuales (públicas para los estados) ----
     void limpiarPantalla();
     void pausar();
     void linea(int ancho, char c);
     void titulo(const string& texto);
+
+
+    vector<ResultadoBusqueda> buscarAnio(int anio);
 };
 
 #endif // INTERFAZ_STREAMING_H

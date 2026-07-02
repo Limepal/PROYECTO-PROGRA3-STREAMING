@@ -283,7 +283,13 @@ vector<DatosPelicula> CargarDatosLimpios(
             for (size_t i = inicio; i < fin; i++) {
                 vector<string> campos = separarLinea(lineas[i]);
                 if (campos.size() >= 7) {
-                    lista[i].year     = campos[0];
+                    // se intenta convertir int. si falla asignamos 0.
+                    try {
+                        lista[i].year = stoi(campos[0]);
+                    } catch (...) {
+                        lista[i].year = 0;
+                    }
+
                     lista[i].titulo   = campos[1];
                     lista[i].origen   = campos[2];
                     lista[i].director = campos[3];
@@ -298,7 +304,7 @@ vector<DatosPelicula> CargarDatosLimpios(
 
     // Eliminar entradas vacias (lineas con menos de 7 campos)
     lista.erase(remove_if(lista.begin(), lista.end(),
-        [](const DatosPelicula& d) { return d.year.empty(); }),
+        [](const DatosPelicula& d) { return d.year <= 0; }),
         lista.end());
 
     lista.shrink_to_fit();

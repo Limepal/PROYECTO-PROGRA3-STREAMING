@@ -7,7 +7,7 @@
 #include <vector>
 
 struct DatosPelicula {
-    std::string year;
+    int year;
     std::string titulo;
     std::string origen;
     std::string director;

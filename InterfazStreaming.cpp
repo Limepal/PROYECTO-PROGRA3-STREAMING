@@ -143,7 +143,7 @@ double InterfazStreaming::calcularRelevancia(int id,
     if (enTrama) score += 2.0;
 
     try {
-        int year = stoi(p.year);
+        int year = p.year;
         if      (year >= 2015) score += 0.5;
         else if (year >= 2010) score += 0.4;
         else if (year >= 2000) score += 0.2;
@@ -203,7 +203,38 @@ vector<ResultadoBusqueda> InterfazStreaming::buscar(const string& consulta) {
 
     return resultados;
 }
+// BUSQUEDA POR AÑO (Usa el índice genérico)
 
+vector<ResultadoBusqueda> InterfazStreaming::buscarAnio(int anio) {
+    vector<int> idsEncontrados = motor->buscarPorAnio(anio);
+    vector<ResultadoBusqueda> resultados;
+
+    for (int id : idsEncontrados) {
+        ResultadoBusqueda rb;
+        rb.id = id;
+
+        // Relevancia base
+        rb.relevancia = 1.0;
+
+        // Bonus por preferencias del usuario
+        Pelicula p = motor->obtenerPelicula(id);
+        if (tieneVerMasTarde(id)) rb.relevancia += 0.2;
+        if (perfil.frecuenciaGeneros.count(p.genero)) {
+            rb.relevancia += 0.1 * perfil.frecuenciaGeneros[p.genero];
+        }
+
+        rb.tipoCoincidencia = "año";
+        resultados.push_back(rb);
+    }
+
+    // Ordenar por relevancia
+    sort(resultados.begin(), resultados.end(),
+         [](const ResultadoBusqueda& a, const ResultadoBusqueda& b) {
+             return a.relevancia > b.relevancia;
+         });
+
+    return resultados;
+}
 
 // GESTION DE LIKES Y VER MAS TARDE
 
@@ -451,25 +482,43 @@ void InterfazStreaming::pantallaInicio() {
 void InterfazStreaming::pantallaBusqueda() {
     titulo("BUSCAR PELICULAS");
 
-    cout << "Puedes buscar por:" << endl;
-    cout << "  - Palabra o frase en titulo o sinopsis" << endl;
-    cout << "  - Sub-palabra (ej: 'bar' encuentra 'barco')" << endl;
-    cout << endl;
+    cout << "Opciones de busqueda:" << endl;
+    cout << "  [1] Buscar por texto (Titulo o Sinopsis)" << endl;
+    cout << "  [2] Buscar por Año de lanzamiento" << endl;
+    cout << "  [0] Cancelar" << endl;
+    cout << endl << "Selecciona: ";
 
-    cout << "Ingresa tu busqueda: ";
-    string consulta;
-    cin.ignore();
-    getline(cin, consulta);
+    string op;
+    cin >> op;
 
-    if (consulta.empty()) {
-        cout << "Busqueda cancelada." << endl;
-        pausar();
-        return;
+    if (op == "1") {
+        cout << "\nIngresa tu busqueda (palabra o frase): ";
+        string consulta;
+        cin.ignore();
+        getline(cin, consulta);
+
+        if (consulta.empty()) {
+            cout << "Busqueda cancelada." << endl;
+            pausar();
+            return;
+        }
+
+        cout << "Buscando..." << endl;
+        vector<ResultadoBusqueda> resultados = buscar(consulta);
+        paginarResultados(resultados, consulta);
     }
+    else if (op == "2") {
+        cout << "\nIngresa el año (ej. 1999): ";
+        int anio;
+        cin >> anio;
 
-    cout << "Buscando..." << endl;
-    vector<ResultadoBusqueda> resultados = buscar(consulta);
-    paginarResultados(resultados, consulta);
+        cout << "Buscando..." << endl;
+        vector<ResultadoBusqueda> resultados = buscarAnio(anio);
+        paginarResultados(resultados, "Año: " + to_string(anio));
+    }
+    else {
+        return; // Vuelve al menú principal manejado por el Estado
+    }
 }
 
 void InterfazStreaming::pantallaVerMasTarde() {

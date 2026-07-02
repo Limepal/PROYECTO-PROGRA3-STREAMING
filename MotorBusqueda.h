@@ -10,7 +10,8 @@ using namespace std;
 
 struct Pelicula {
     int id;
-    string year, titulo, genero, trama, director, reparto, origen;
+    int year;
+    string titulo, genero, trama, director, reparto, origen;
 };
 
 // NODO DE SUFFIX TREE
@@ -31,16 +32,24 @@ struct ParPalabraId {
     }
 };
 
+//PROGRA GENERICA OU YEA
+
+template <typename T>
 struct EntradaIndice {
-    string palabra;
+    T clave;
     vector<int> ids;
 };
+
+template <typename T>
+vector<int> buscarEnIndiceGenerico(const vector<EntradaIndice<T>>& indice, const T& busqueda);
+template <typename T>
+void construirIndice(const vector<pair<T, int>>& buffer, vector<EntradaIndice<T>>& indice);
 
 class MotorBusqueda {
 private:
     vector<Pelicula> baseDatos;
     NodoST* raizST;
-    vector<EntradaIndice> indiceInvertido;
+    vector<EntradaIndice<string>> indiceInvertido;
     vector<ParPalabraId> bufferIndexacion;
     mutex mtxST;
 
@@ -49,6 +58,9 @@ private:
     void liberarST(NodoST* nodo);
     void tokenizarYAgregar(const string& texto, int id, vector<ParPalabraId>& buffer);
 
+
+    vector<EntradaIndice<int>> indiceAnios;
+    vector<pair<int, int>> bufferAnios;
 public:
     MotorBusqueda();
     ~MotorBusqueda();
@@ -67,6 +79,8 @@ public:
 
     int getTotalPeliculas() { return baseDatos.size(); }
     Pelicula obtenerPelicula(int id);
+
+    vector<int> buscarPorAnio(int anio);
 };
 
 #endif

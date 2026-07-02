@@ -184,8 +184,10 @@ void MotorBusqueda::agregarPelicula(const Pelicula& p) {
 
     insertarEnST(p.titulo, nuevoId);
     indexarTrama(p.trama, nuevoId);
-}
 
+    // NUEVA LÍNEA: Agregamos el par (año, ID) al buffer
+    bufferAnios.push_back({p.year, nuevoId});
+}
 void MotorBusqueda::agregarPeliculaConcurrente(const Pelicula& p, vector<ParPalabraId>& bufferLocal) {
     int nuevoId;
     {
@@ -235,7 +237,7 @@ void MotorBusqueda::finalizarIndexacion() {
 
     indiceInvertido.clear();
     for (const auto& par : bufferIndexacion) {
-        if (indiceInvertido.empty() || indiceInvertido.back().palabra != par.palabra) {
+        if (indiceInvertido.empty() || indiceInvertido.back().clave != par.palabra) {
             indiceInvertido.push_back({par.palabra, {par.id}});
         } else {
             if (indiceInvertido.back().ids.back() != par.id) {
@@ -245,25 +247,55 @@ void MotorBusqueda::finalizarIndexacion() {
     }
     bufferIndexacion.clear();
     bufferIndexacion.shrink_to_fit();
+
+    if (!bufferAnios.empty()) {
+        sort(bufferAnios.begin(), bufferAnios.end());
+        construirIndice(bufferAnios, indiceAnios);
+        bufferAnios.clear();
+        bufferAnios.shrink_to_fit();
+    }
 }
 
 vector<int> MotorBusqueda::buscarEnTrama(const string& termino) {
     string busqueda = normalizarToken(termino);
+    return buscarEnIndiceGenerico(indiceInvertido, busqueda);
+}
 
-    auto it = lower_bound(indiceInvertido.begin(), indiceInvertido.end(), busqueda,
-        [](const EntradaIndice& e, const string& val) {
-            return e.palabra < val;
-        });
-
-    if (it != indiceInvertido.end() && it->palabra == busqueda) {
-        return it->ids;
-    }
-    return {};
+vector<int> MotorBusqueda::buscarPorAnio(int anio) {
+    return buscarEnIndiceGenerico(indiceAnios, anio);
 }
 
 Pelicula MotorBusqueda::obtenerPelicula(int id) {
     if (id >= 0 && id < baseDatos.size()) {
         return baseDatos[id];
     }
-    return Pelicula{-1, "", "", "", ""};
+    return Pelicula{-1, 0, "", "", ""};
 }
+
+template <typename T>
+vector<int> buscarEnIndiceGenerico(const vector<EntradaIndice<T>>& indice, const T& busqueda) {
+    auto it = lower_bound(indice.begin(), indice.end(), busqueda,
+        [](const EntradaIndice<T>& e, const T& val) {
+            return e.clave < val;
+        });
+
+    if (it != indice.end() && it->clave == busqueda) {
+        return it->ids;
+    }
+    return {};
+}
+
+template <typename T>
+void construirIndice(const vector<pair<T, int>>& buffer, vector<EntradaIndice<T>>& indice) {
+    indice.clear();
+    for (const auto& par : buffer) {
+        if (indice.empty() || indice.back().clave != par.first) {
+            indice.push_back({par.first, {par.second}});
+        } else {
+            if (indice.back().ids.back() != par.second) {
+                indice.back().ids.push_back(par.second);
+            }
+        }
+    }
+}
+
