@@ -188,24 +188,6 @@ void MotorBusqueda::agregarPelicula(const Pelicula& p) {
     indexarTrama(p.trama, nuevoId);
 }
 
-void MotorBusqueda::prepararCarga(size_t cantidad) {
-    lock_guard<mutex> lock(mtxST);
-    baseDatos.resize(cantidad);
-}
-
-void MotorBusqueda::agregarPeliculaConcurrente(const Pelicula& p, int id,
-                                                vector<ParPalabraId>& bufferLocal) {
-    {
-        lock_guard<mutex> lock(mtxST);
-        if (id < 0 || static_cast<size_t>(id) >= baseDatos.size()) return;
-        Pelicula estable = p;
-        estable.id = id;
-        baseDatos[id] = estable;
-        insertarEnST(p.titulo, id);
-    }
-    tokenizarYAgregar(p.trama, id, bufferLocal);
-}
-
 void MotorBusqueda::tokenizarYAgregar(const string& texto, int id, vector<ParPalabraId>& buffer) {
     string palabra;
     for (size_t i = 0; i <= texto.length(); ++i) {
@@ -220,15 +202,6 @@ void MotorBusqueda::tokenizarYAgregar(const string& texto, int id, vector<ParPal
         } else {
             palabra += texto[i];
         }
-    }
-}
-
-void MotorBusqueda::mergeBuffers(const vector<vector<ParPalabraId>>& buffersLocales) {
-    size_t total = 0;
-    for (const auto& b : buffersLocales) total += b.size();
-    bufferIndexacion.reserve(bufferIndexacion.size() + total);
-    for (const auto& b : buffersLocales) {
-        bufferIndexacion.insert(bufferIndexacion.end(), b.begin(), b.end());
     }
 }
 

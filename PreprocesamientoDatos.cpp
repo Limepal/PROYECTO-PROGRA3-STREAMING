@@ -6,8 +6,6 @@
 #include <iostream>
 #include <algorithm>
 #include <unordered_set>
-#include <thread>
-#include <future>
 
 using namespace std;
 
@@ -157,7 +155,7 @@ string eliminarStopwords(const string& texto) {
 }
 
 // =========================
-// LIMPIAR CSV (PARALELO)
+// LIMPIAR CSV (SECUENCIAL)
 // =========================
 
 void LimpiarDatos(const string& nombreEntrada,
@@ -188,43 +186,29 @@ void LimpiarDatos(const string& nombreEntrada,
         return;
     }
 
-    // Procesar en paralelo
-    unsigned int numHilos = thread::hardware_concurrency();
-    if (numHilos == 0) numHilos = 4;
-    size_t bloque = (lineas.size() + numHilos - 1) / numHilos;
-
     vector<string> resultados(lineas.size());
-    vector<future<void>> futuros;
+    for (size_t i = 0; i < lineas.size(); ++i) {
+        vector<string> campos = separarLinea(lineas[i]);
+        if (campos.size() >= 8) {
+            const string& year = campos[0];
+            string titulo   = eliminarStopwords(procesarCadena(campos[1]));
+            string origen   = eliminarStopwords(procesarCadena(campos[2]));
+            string director = eliminarStopwords(procesarCadena(campos[3]));
+            string reparto  = eliminarStopwords(procesarCadena(campos[4]));
+            string genero   = (campos[5] == "unknown")
+                              ? "otros"
+                              : eliminarStopwords(procesarCadena(campos[5]));
+            string trama    = eliminarStopwords(procesarCadena(campos[7]));
 
-    for (unsigned int h = 0; h < numHilos; h++) {
-        size_t inicio = h * bloque;
-        size_t fin = min(inicio + bloque, lineas.size());
-        futuros.push_back(async(launch::async, [&lineas, &resultados, inicio, fin]() {
-            for (size_t i = inicio; i < fin; i++) {
-                vector<string> campos = separarLinea(lineas[i]);
-                if (campos.size() >= 8) {
-                    const string& year = campos[0];
-                    string titulo  = eliminarStopwords(procesarCadena(campos[1]));
-                    string origen  = eliminarStopwords(procesarCadena(campos[2]));
-                    string director= eliminarStopwords(procesarCadena(campos[3]));
-                    string reparto = eliminarStopwords(procesarCadena(campos[4]));
-                    string genero  = (campos[5] == "unknown")
-                                    ? "otros"
-                                    : eliminarStopwords(procesarCadena(campos[5]));
-                    string trama   = eliminarStopwords(procesarCadena(campos[7]));
-
-                    resultados[i] = year + "," +
-                        "\"" + titulo + "\"," +
-                        "\"" + origen + "\"," +
-                        "\"" + director + "\"," +
-                        "\"" + reparto + "\"," +
-                        "\"" + genero + "\"," +
-                        "\"" + trama + "\"\n";
-                }
-            }
-        }));
+            resultados[i] = year + "," +
+                "\"" + titulo + "\"," +
+                "\"" + origen + "\"," +
+                "\"" + director + "\"," +
+                "\"" + reparto + "\"," +
+                "\"" + genero + "\"," +
+                "\"" + trama + "\"\n";
+        }
     }
-    for (auto& f : futuros) f.get();
 
     // Escribir resultados secuencialmente
     ofstream salida(nombreSalida);
@@ -240,7 +224,7 @@ void LimpiarDatos(const string& nombreEntrada,
 }
 
 // =========================
-// CARGAR CSV LIMPIO (PARALELO)
+// CARGAR CSV LIMPIO (SECUENCIAL)
 // =========================
 
 vector<DatosPelicula> CargarDatosLimpios(
@@ -270,31 +254,18 @@ vector<DatosPelicula> CargarDatosLimpios(
     // Pre-asignar espacio
     vector<DatosPelicula> lista(lineas.size());
 
-    // Procesar en paralelo
-    unsigned int numHilos = thread::hardware_concurrency();
-    if (numHilos == 0) numHilos = 4;
-    size_t bloque = (lineas.size() + numHilos - 1) / numHilos;
-
-    vector<future<void>> futuros;
-    for (unsigned int h = 0; h < numHilos; h++) {
-        size_t inicio = h * bloque;
-        size_t fin = min(inicio + bloque, lineas.size());
-        futuros.push_back(async(launch::async, [&lineas, &lista, inicio, fin]() {
-            for (size_t i = inicio; i < fin; i++) {
-                vector<string> campos = separarLinea(lineas[i]);
-                if (campos.size() >= 7) {
-                    lista[i].year     = campos[0];
-                    lista[i].titulo   = campos[1];
-                    lista[i].origen   = campos[2];
-                    lista[i].director = campos[3];
-                    lista[i].reparto  = campos[4];
-                    lista[i].genero   = campos[5];
-                    lista[i].trama    = campos[6];
-                }
-            }
-        }));
+    for (size_t i = 0; i < lineas.size(); ++i) {
+        vector<string> campos = separarLinea(lineas[i]);
+        if (campos.size() >= 7) {
+            lista[i].year     = campos[0];
+            lista[i].titulo   = campos[1];
+            lista[i].origen   = campos[2];
+            lista[i].director = campos[3];
+            lista[i].reparto  = campos[4];
+            lista[i].genero   = campos[5];
+            lista[i].trama    = campos[6];
+        }
     }
-    for (auto& f : futuros) f.get();
 
     // Eliminar entradas vacias (lineas con menos de 7 campos)
     lista.erase(remove_if(lista.begin(), lista.end(),
