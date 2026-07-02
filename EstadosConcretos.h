@@ -110,8 +110,7 @@ public:
             ctx.pausar();
             return true;
         }
-            return true;
-        }
+
         cin.ignore(numeric_limits<streamsize>::max(), '\n');
 
         switch (op) {
@@ -130,7 +129,9 @@ public:
         }
         return true;
     }
+
     const char* nombre() const override { return "Menu"; }
+
 };
 
 #endif // ESTADOS_CONCRETOS_H
