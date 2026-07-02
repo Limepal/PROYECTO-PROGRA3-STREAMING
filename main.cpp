@@ -2,8 +2,9 @@
 #include <vector>
 #include <thread>
 #include <future>
-#include <atomic>
 #include <chrono>
+#include <iomanip>
+#include <algorithm>
 #include "PreprocesamientoDatos.h"
 #include "MotorBusqueda.h"
 #include "InterfazStreaming.h"
@@ -35,37 +36,14 @@ int main() {
     size_t total = datos.size();
     cout << total << " peliculas cargadas. Indexando..." << endl;
 
-    // Fase 2: Indexacion paralela con barra de progreso
+    // Fase 2: indexacion paralela sin mutex global.
     unsigned int numHilos = thread::hardware_concurrency();
     if (numHilos == 0) numHilos = 4;
+    numHilos = min(numHilos, 8u);
+    numHilos = min(numHilos, static_cast<unsigned int>(total));
     size_t bloque = (total + numHilos - 1) / numHilos;
 
-    atomic<size_t> progreso{0};
-    motor.prepararCarga(total);
-
-    // Hilo dedicado a dibujar la barra de progreso
-    thread hiloProgreso([&]() {
-        size_t ultimo = 0;
-        while (progreso < total) {
-            size_t actual = progreso;
-            if (actual != ultimo) {
-                int pct = (int)(100 * actual / total);
-                cout << "\r[";
-                int pos = pct / 5;
-                for (int i = 0; i < 20; i++) {
-                    cout << (i < pos ? '=' : (i == pos ? '>' : ' '));
-                }
-                cout << "] " << pct << "% (" << actual << "/" << total << ")   ";
-                cout.flush();
-                ultimo = actual;
-            }
-            this_thread::sleep_for(chrono::milliseconds(80));
-        }
-        // 100% final
-        cout << "\r[";
-        for (int i = 0; i < 20; i++) cout << '=';
-        cout << "] 100% (" << total << "/" << total << ")   " << endl;
-    });
+    motor.prepararCarga(total, numHilos);
 
     vector<vector<ParPalabraId>> buffersLocales(numHilos);
     vector<future<void>> futuros;
@@ -73,7 +51,7 @@ int main() {
     for (unsigned int h = 0; h < numHilos; h++) {
         size_t inicio = h * bloque;
         size_t fin = min(inicio + bloque, total);
-        futuros.push_back(async(launch::async, [&motor, &datos, &buffersLocales, &progreso, inicio, fin, h]() {
+        futuros.push_back(async(launch::async, [&motor, &datos, &buffersLocales, inicio, fin, h]() {
             for (size_t i = inicio; i < fin; i++) {
                 Pelicula p;
                 p.year = datos[i].year;
@@ -83,16 +61,17 @@ int main() {
                 p.director = datos[i].director;
                 p.reparto = datos[i].reparto;
                 p.origen = datos[i].origen;
-                motor.agregarPeliculaConcurrente(p, static_cast<int>(i), buffersLocales[h]);
-                progreso++;
+                motor.agregarPeliculaConcurrente(
+                    p, static_cast<int>(i), h, buffersLocales[h]);
             }
+            sort(buffersLocales[h].begin(), buffersLocales[h].end());
         }));
     }
     for (auto& f : futuros) f.get();
-    hiloProgreso.join();
+    cout << "Indexacion paralela completada con "
+         << numHilos << " trabajadores." << endl;
 
-    motor.mergeBuffers(buffersLocales);
-    motor.finalizarIndexacion();
+    motor.finalizarIndexacionParalela(buffersLocales);
 
     //Fin de medicion de tiempo
     auto finProcesamiento = chrono::steady_clock::now();

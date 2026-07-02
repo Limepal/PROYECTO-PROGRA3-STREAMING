@@ -117,27 +117,31 @@ Likes existentes quedan excluidos.
 
 ## Programación paralela
 
-Se utiliza `std::async`, `std::thread`, buffers locales, `std::atomic` y
-`std::mutex`:
+Se utiliza `std::async`, `std::future` y un máximo de ocho trabajadores:
 
 - limpieza y carga del CSV por bloques;
+- un Suffix Tree independiente por trabajador, sin mutex global;
 - tokenización de sinopsis en buffers locales sin contención;
-- IDs estables según la posición del CSV;
-- exclusión mutua únicamente al insertar en el árbol compartido;
-- hilo independiente para el progreso.
+- IDs estables según la posición original del CSV;
+- ordenamiento simultáneo de cada buffer local;
+- fusión k-way de buffers mediante una cola de prioridad.
+
+Las búsquedas consultan todos los árboles y deduplican los IDs. Así los
+trabajadores no esperan para insertar en un único árbol compartido.
 
 ### Comparación de tiempos
 
-Medición reproducible del trabajo de normalización sobre 330 registros,
-606 repeticiones (199 980 líneas procesadas), realizada el 1 de julio de 2026
-en el equipo de desarrollo:
+Medición del procesamiento completo de 34 886 películas: limpieza del CSV,
+carga, construcción de los Suffix Trees y construcción del índice invertido.
 
-| Operación | Secuencial (ms) | Paralelo (ms) | Speedup |
+| Implementación concurrente | Tiempo (ms) | Tiempo (s) | Mejora |
 |---|---:|---:|---:|
-| Normalización de texto | 5802 | 3791 | 1.53x |
+| Anterior: árbol con mutex y ordenamiento global | 65 135 | 65.135 | Base |
+| Optimizada: 8 árboles, sort local y fusión k-way | 37 588 | 37.588 | 1.73x |
 
-El resultado depende del procesador y puede repetirse en el equipo de
-exposición usando el mismo conjunto de datos y número de repeticiones.
+Dos repeticiones adicionales de la versión optimizada obtuvieron 36.364 s y
+35.967 s. Los resultados dependen del procesador y deben compararse usando el
+mismo CSV, equipo y configuración de compilación.
 
 ## Organización
 

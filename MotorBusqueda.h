@@ -4,7 +4,6 @@
 #include <string>
 #include <vector>
 #include <algorithm>
-#include <mutex>
 #include <map>
 
 using namespace std;
@@ -40,24 +39,26 @@ struct EntradaIndice {
 class MotorBusqueda {
 private:
     vector<Pelicula> baseDatos;
-    NodoST* raizST;
+    vector<NodoST*> raicesST;
     vector<EntradaIndice> indiceInvertido;
     vector<ParPalabraId> bufferIndexacion;
-    mutex mtxST;
 
     // Helper recursivo para la inserción de sufijos
     void insertarSufijo(NodoST* nodo, string sufijo, int id);
     void liberarST(NodoST* nodo);
     void tokenizarYAgregar(const string& texto, int id, vector<ParPalabraId>& buffer);
+    vector<int> buscarEnRaiz(NodoST* raiz, const string& query);
 
 public:
     MotorBusqueda();
     ~MotorBusqueda();
     void agregarPelicula(const Pelicula& p);
-    void prepararCarga(size_t cantidad);
+    void prepararCarga(size_t cantidad, size_t cantidadArboles);
     void agregarPeliculaConcurrente(const Pelicula& p, int id,
+                                    size_t indiceArbol,
                                     vector<ParPalabraId>& bufferLocal);
-    void mergeBuffers(const vector<vector<ParPalabraId>>& buffersLocales);
+    void mergeBuffers(vector<vector<ParPalabraId>>& buffersLocales);
+    void finalizarIndexacionParalela(vector<vector<ParPalabraId>>& buffersLocales);
 
     string normalizarToken(const string &palabra);
 

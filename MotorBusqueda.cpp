@@ -1,10 +1,12 @@
 #include "MotorBusqueda.h"
 #include <cctype>
+#include <iterator>
+#include <queue>
 
 using namespace std;
 
 MotorBusqueda::MotorBusqueda() {
-    raizST = new NodoST();
+    raicesST.push_back(new NodoST());
 }
 
 void MotorBusqueda::liberarST(NodoST* nodo) {
@@ -16,7 +18,7 @@ void MotorBusqueda::liberarST(NodoST* nodo) {
 }
 
 MotorBusqueda::~MotorBusqueda() {
-    liberarST(raizST);
+    for (NodoST* raiz : raicesST) liberarST(raiz);
 }
 
 string MotorBusqueda::normalizarToken(const string& palabra) {
@@ -118,7 +120,7 @@ void MotorBusqueda::insertarEnST(const string& titulo, int id) {
 
     // MAGIA DEL SUFFIX TREE: Insertamos todos y cada uno de los sufijos
     for (size_t i = 0; i < titLimpio.length(); ++i) {
-        insertarSufijo(raizST, titLimpio.substr(i), id);
+        insertarSufijo(raicesST.front(), titLimpio.substr(i), id);
     }
 }
 
@@ -130,7 +132,18 @@ vector<int> MotorBusqueda::buscarPorTitulo(const string& subcadena) {
     string query = normalizarToken(subcadena);
     if (query.empty()) return {};
 
-    NodoST* actual = raizST;
+    vector<int> resultados;
+    for (NodoST* raiz : raicesST) {
+        vector<int> parciales = buscarEnRaiz(raiz, query);
+        resultados.insert(resultados.end(), parciales.begin(), parciales.end());
+    }
+    sort(resultados.begin(), resultados.end());
+    resultados.erase(unique(resultados.begin(), resultados.end()), resultados.end());
+    return resultados;
+}
+
+vector<int> MotorBusqueda::buscarEnRaiz(NodoST* raiz, const string& query) {
+    NodoST* actual = raiz;
     size_t i = 0; // Puntero de lectura en la query
 
     while (i < query.length()) {
@@ -192,21 +205,32 @@ void MotorBusqueda::agregarPelicula(const Pelicula& p) {
     indexarTrama(p.trama, nuevoId);
 }
 
-void MotorBusqueda::prepararCarga(size_t cantidad) {
-    lock_guard<mutex> lock(mtxST);
+void MotorBusqueda::prepararCarga(size_t cantidad, size_t cantidadArboles) {
     baseDatos.resize(cantidad);
+    for (NodoST* raiz : raicesST) liberarST(raiz);
+    raicesST.clear();
+    cantidadArboles = max<size_t>(1, cantidadArboles);
+    raicesST.reserve(cantidadArboles);
+    for (size_t i = 0; i < cantidadArboles; ++i)
+        raicesST.push_back(new NodoST());
 }
 
 void MotorBusqueda::agregarPeliculaConcurrente(const Pelicula& p, int id,
+                                                size_t indiceArbol,
                                                 vector<ParPalabraId>& bufferLocal) {
-    {
-        lock_guard<mutex> lock(mtxST);
-        if (id < 0 || static_cast<size_t>(id) >= baseDatos.size()) return;
-        Pelicula estable = p;
-        estable.id = id;
-        baseDatos[id] = estable;
-        insertarEnST(p.titulo, id);
-    }
+    if (id < 0 || static_cast<size_t>(id) >= baseDatos.size() ||
+        indiceArbol >= raicesST.size()) return;
+
+    Pelicula estable = p;
+    estable.id = id;
+    baseDatos[id] = std::move(estable);
+
+    string tituloLimpio = normalizarToken(p.titulo);
+    tituloLimpio += "$";
+    NodoST* raizLocal = raicesST[indiceArbol];
+    for (size_t i = 0; i < tituloLimpio.length(); ++i)
+        insertarSufijo(raizLocal, tituloLimpio.substr(i), id);
+
     tokenizarYAgregar(p.trama, id, bufferLocal);
 }
 
@@ -227,12 +251,64 @@ void MotorBusqueda::tokenizarYAgregar(const string& texto, int id, vector<ParPal
     }
 }
 
-void MotorBusqueda::mergeBuffers(const vector<vector<ParPalabraId>>& buffersLocales) {
+void MotorBusqueda::mergeBuffers(vector<vector<ParPalabraId>>& buffersLocales) {
     size_t total = 0;
     for (const auto& b : buffersLocales) total += b.size();
     bufferIndexacion.reserve(bufferIndexacion.size() + total);
-    for (const auto& b : buffersLocales) {
-        bufferIndexacion.insert(bufferIndexacion.end(), b.begin(), b.end());
+    for (auto& b : buffersLocales) {
+        bufferIndexacion.insert(bufferIndexacion.end(),
+                                make_move_iterator(b.begin()),
+                                make_move_iterator(b.end()));
+    }
+}
+
+void MotorBusqueda::finalizarIndexacionParalela(
+    vector<vector<ParPalabraId>>& buffersLocales) {
+    struct Cursor {
+        size_t buffer;
+        size_t posicion;
+    };
+    struct MayorPrimero {
+        const vector<vector<ParPalabraId>>* buffers;
+        bool operator()(const Cursor& a, const Cursor& b) const {
+            return (*buffers)[b.buffer][b.posicion] <
+                   (*buffers)[a.buffer][a.posicion];
+        }
+    };
+
+    priority_queue<Cursor, vector<Cursor>, MayorPrimero>
+        cola(MayorPrimero{&buffersLocales});
+
+    size_t totalPalabras = 0;
+    for (size_t i = 0; i < buffersLocales.size(); ++i) {
+        totalPalabras += buffersLocales[i].size();
+        if (!buffersLocales[i].empty()) cola.push({i, 0});
+    }
+
+    indiceInvertido.clear();
+    indiceInvertido.reserve(totalPalabras / 4);
+
+    while (!cola.empty()) {
+        Cursor cursor = cola.top();
+        cola.pop();
+        const ParPalabraId& par =
+            buffersLocales[cursor.buffer][cursor.posicion];
+
+        if (indiceInvertido.empty() ||
+            indiceInvertido.back().palabra != par.palabra) {
+            indiceInvertido.push_back({par.palabra, {par.id}});
+        } else if (indiceInvertido.back().ids.back() != par.id) {
+            indiceInvertido.back().ids.push_back(par.id);
+        }
+
+        ++cursor.posicion;
+        if (cursor.posicion < buffersLocales[cursor.buffer].size())
+            cola.push(cursor);
+    }
+
+    for (auto& buffer : buffersLocales) {
+        buffer.clear();
+        buffer.shrink_to_fit();
     }
 }
 

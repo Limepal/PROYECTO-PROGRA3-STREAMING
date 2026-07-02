@@ -234,6 +234,8 @@ void LimpiarDatos(const string& nombreEntrada, const string& nombreSalida) {
     // Procesar en paralelo
     unsigned int numHilos = thread::hardware_concurrency();
     if (numHilos == 0) numHilos = 4;
+    numHilos = min(numHilos, 8u);
+    numHilos = min(numHilos, static_cast<unsigned int>(filas.size()));
     size_t bloque = (filas.size() + numHilos - 1) / numHilos;
 
     vector<string> resultados(filas.size());
@@ -321,6 +323,8 @@ vector<DatosPelicula> CargarDatosLimpios(
     // Procesar en paralelo
     unsigned int numHilos = thread::hardware_concurrency();
     if (numHilos == 0) numHilos = 4;
+    numHilos = min(numHilos, 8u);
+    numHilos = min(numHilos, static_cast<unsigned int>(lineas.size()));
     size_t bloque = (lineas.size() + numHilos - 1) / numHilos;
 
     vector<future<void>> futuros;

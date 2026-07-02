@@ -2,7 +2,7 @@
 #define ESTADOS_CONCRETOS_H
 #include "EstadoInterfaz.h"
 #include "InterfazStreaming.h"
-#include <limits>
+#include <sstream>
 
 
 // EstadoInicio
@@ -110,8 +110,6 @@ public:
             ctx.pausar();
             return true;
         }
-
-        cin.ignore(numeric_limits<streamsize>::max(), '\n');
 
         switch (op) {
             case 1: ctx.cambiarEstado(new EstadoBusqueda());     break;
